@@ -33,7 +33,7 @@ def _get_ref_block() -> tuple:
 def _encode_transfer(to: str, amount: int) -> str:
     """编码 TRC20 transfer 函数调用"""
     method_sig = "a9059cbb"
-    addr_hex = to.ljust(64, "0")
+    addr_hex = to.zfill(64)
     amount_hex = hex(amount)[2:].zfill(64)
     return method_sig + addr_hex + amount_hex
 

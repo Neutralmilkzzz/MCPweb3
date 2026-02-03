@@ -11,36 +11,32 @@ def test_get_balance_trx_converts_base58_to_hex(monkeypatch):
 
     captured = {}
 
-    def fake_post(method, params):
-        captured["method"] = method
+    def fake_get(path, params=None):
+        captured["path"] = path
         captured["params"] = params
-        return {"result": "0x0"}
+        return {"balance": 0}
 
-    monkeypatch.setattr(tron_client, "_post", fake_post)
+    monkeypatch.setattr(tron_client, "_get", fake_get)
     tron_client.get_balance_trx(USDT_BASE58)
 
-    assert captured["method"] == "eth_getBalance"
-    assert captured["params"][0] == USDT_HEX
-    assert captured["params"][1] == "latest"
+    assert captured["path"] == "account"
+    assert captured["params"]["address"] == USDT_BASE58
 
 
 def test_get_usdt_balance_call_data_uses_hex_address(monkeypatch):
     from tron_mcp_server import tron_client
 
-    captured = {}
-
-    def fake_post(method, params):
-        captured["method"] = method
-        captured["params"] = params
-        return {"result": "0x0"}
-
-    monkeypatch.setattr(tron_client, "_post", fake_post)
-    tron_client.get_usdt_balance(USDT_BASE58)
-
-    assert captured["method"] == "eth_call"
-    data = captured["params"][0]["data"]
-    expected = "0x70a08231" + USDT_HEX_NOPREFIX.zfill(64)
-    assert data == expected
+    monkeypatch.setattr(
+        tron_client,
+        "_get",
+        lambda path, params=None: {
+            "trc20token_balances": [
+                {"tokenId": tron_client.USDT_CONTRACT_HEX, "balance": "1000000", "tokenDecimal": 6}
+            ]
+        },
+    )
+    balance = tron_client.get_usdt_balance(USDT_BASE58)
+    assert balance == 1.0
 
 
 def test_trc20_transfer_encoding_left_pad():
@@ -110,7 +106,7 @@ def test_hex_address_length_strict():
 def test_get_transaction_status_pending_receipt(monkeypatch):
     from tron_mcp_server import tron_client
 
-    monkeypatch.setattr(tron_client, "_post", lambda method, params: {"result": None})
+    monkeypatch.setattr(tron_client, "_get", lambda path, params=None: {})
 
     with pytest.raises(ValueError):
         tron_client.get_transaction_status("0x" + "a" * 64)
@@ -121,8 +117,8 @@ def test_get_transaction_status_missing_status(monkeypatch):
 
     monkeypatch.setattr(
         tron_client,
-        "_post",
-        lambda method, params: {"result": {"blockNumber": "0x10"}},
+        "_get",
+        lambda path, params=None: {"block": 16},
     )
 
     success, block_number = tron_client.get_transaction_status("0x" + "a" * 64)
@@ -133,7 +129,7 @@ def test_get_transaction_status_missing_status(monkeypatch):
 def test_get_gas_parameters_requires_result_key(monkeypatch):
     from tron_mcp_server import tron_client
 
-    monkeypatch.setattr(tron_client, "_post", lambda method, params: {})
+    monkeypatch.setattr(tron_client, "_get", lambda path, params=None: {})
 
     with pytest.raises(ValueError):
         tron_client.get_gas_parameters()
@@ -142,7 +138,7 @@ def test_get_gas_parameters_requires_result_key(monkeypatch):
 def test_get_network_status_requires_result_key(monkeypatch):
     from tron_mcp_server import tron_client
 
-    monkeypatch.setattr(tron_client, "_post", lambda method, params: {})
+    monkeypatch.setattr(tron_client, "_get", lambda path, params=None: {})
 
     with pytest.raises(KeyError):
         tron_client.get_network_status()
@@ -151,8 +147,8 @@ def test_get_network_status_requires_result_key(monkeypatch):
 def test_get_balance_trx_large_value_precision(monkeypatch):
     from tron_mcp_server import tron_client
 
-    # very large hex (2**200)
-    monkeypatch.setattr(tron_client, "_post", lambda method, params: {"result": hex(2**200)})
+    # very large int as string
+    monkeypatch.setattr(tron_client, "_get", lambda path, params=None: {"balance": str(2**200)})
 
     balance = tron_client.get_balance_trx("0x41" + "a" * 40)
     assert balance > 0
@@ -161,8 +157,16 @@ def test_get_balance_trx_large_value_precision(monkeypatch):
 def test_get_usdt_balance_large_value_precision(monkeypatch):
     from tron_mcp_server import tron_client
 
-    # very large hex (2**160)
-    monkeypatch.setattr(tron_client, "_post", lambda method, params: {"result": hex(2**160)})
+    # very large int as string
+    monkeypatch.setattr(
+        tron_client,
+        "_get",
+        lambda path, params=None: {
+            "trc20token_balances": [
+                {"tokenId": tron_client.USDT_CONTRACT_BASE58, "balance": str(2**160), "tokenDecimal": 6}
+            ]
+        },
+    )
 
     balance = tron_client.get_usdt_balance("0x41" + "a" * 40)
     assert balance > 0

@@ -6,35 +6,50 @@ def client(monkeypatch):
     from tron_mcp_server import tron_client
 
     # Stub the http call
-    monkeypatch.setattr(tron_client, "_post", lambda method, params: (method, params))
+    monkeypatch.setattr(tron_client, "_get", lambda path, params=None: (path, params))
     return tron_client
 
 
 def test_get_usdt_balance_parses_hex(monkeypatch):
     from tron_mcp_server import tron_client
 
-    # Mock RPC response
+    # Mock TRONSCAN response
     monkeypatch.setattr(
-        tron_client, "_post", lambda method, params: {"result": "0x0000000000000000000000000000000000000000000000000000000007735940"}
+        tron_client,
+        "_get",
+        lambda path, params=None: {
+            "trc20token_balances": [
+                {
+                    "tokenId": tron_client.USDT_CONTRACT_BASE58,
+                    "balance": "125000000",
+                    "tokenDecimal": 6,
+                }
+            ]
+        },
     )
     balance = tron_client.get_usdt_balance("TXYZ")
-    # 0x7735940 = 125000000 (8 decimals) — we expect TRC20 USDT uses 6 decimals => 125.0 USDT
+    # 125000000 / 1e6 = 125.0 USDT
     assert balance == 125.0
 
 
 def test_get_balance_trx_parses_hex(monkeypatch):
     from tron_mcp_server import tron_client
 
-    monkeypatch.setattr(tron_client, "_post", lambda method, params: {"result": "0x56bc75e2d63100000"})
+    monkeypatch.setattr(tron_client, "_get", lambda path, params=None: {"balance": 1_000_000})
     balance = tron_client.get_balance_trx("TXYZ")
-    # 0x56bc75e2d63100000 = 10000000000000000000 (wei-like) / 1e6 = 10000000000.0 TRX
-    assert balance == pytest.approx(10000000000.0)
+    assert balance == pytest.approx(1.0)
 
 
 def test_get_gas_parameters(monkeypatch):
     from tron_mcp_server import tron_client
 
-    monkeypatch.setattr(tron_client, "_post", lambda method, params: {"result": "0x1a4"})
+    monkeypatch.setattr(
+        tron_client,
+        "_get",
+        lambda path, params=None: {
+            "chainParameter": [{"key": "getEnergyFee", "value": 420}]
+        },
+    )
     gas = tron_client.get_gas_parameters()
     assert gas == 420
 
@@ -42,13 +57,8 @@ def test_get_gas_parameters(monkeypatch):
 def test_get_transaction_status_success(monkeypatch):
     from tron_mcp_server import tron_client
 
-    rpc_response = {
-        "result": {
-            "status": "0x1",
-            "blockNumber": "0x10",
-        }
-    }
-    monkeypatch.setattr(tron_client, "_post", lambda method, params: rpc_response)
+    api_response = {"contractRet": "SUCCESS", "block": 16}
+    monkeypatch.setattr(tron_client, "_get", lambda path, params=None: api_response)
 
     status, block_number = tron_client.get_transaction_status("0xabc")
     assert status is True
@@ -58,13 +68,8 @@ def test_get_transaction_status_success(monkeypatch):
 def test_get_transaction_status_failure(monkeypatch):
     from tron_mcp_server import tron_client
 
-    rpc_response = {
-        "result": {
-            "status": "0x0",
-            "blockNumber": "0x10",
-        }
-    }
-    monkeypatch.setattr(tron_client, "_post", lambda method, params: rpc_response)
+    api_response = {"contractRet": "OUT_OF_ENERGY", "block": 16}
+    monkeypatch.setattr(tron_client, "_get", lambda path, params=None: api_response)
 
     status, block_number = tron_client.get_transaction_status("0xabc")
     assert status is False
@@ -74,58 +79,54 @@ def test_get_transaction_status_failure(monkeypatch):
 def test_get_network_status(monkeypatch):
     from tron_mcp_server import tron_client
 
-    monkeypatch.setattr(tron_client, "_post", lambda method, params: {"result": "0x123"})
+    monkeypatch.setattr(
+        tron_client, "_get", lambda path, params=None: {"data": [{"number": 0x123}]}
+    )
 
     block_number = tron_client.get_network_status()
     assert block_number == 0x123
 
 
 def test_post_called_with_correct_method_for_balance(monkeypatch):
-    """测试 get_balance_trx 调用正确的 RPC 方法"""
+    """测试 get_balance_trx 调用正确的 API 路径"""
     from tron_mcp_server import tron_client
 
     captured = {}
 
-    def fake_post(m, p):
-        captured["method"] = m
-        captured["params"] = p
-        return {"result": "0x0"}
+    def fake_get(path, params=None):
+        captured["path"] = path
+        captured["params"] = params
+        return {"balance": 0}
 
-    monkeypatch.setattr(tron_client, "_post", fake_post)
-    tron_client.get_balance_trx("0xaddr")
+    monkeypatch.setattr(tron_client, "_get", fake_get)
+    tron_client.get_balance_trx("TXYZ")
 
-    assert captured["method"] == "eth_getBalance"
-    assert captured["params"][0] == "0xaddr"
-    assert captured["params"][1] == "latest"
+    assert captured["path"] == "account"
+    assert captured["params"]["address"] == "TXYZ"
 
 
 def test_post_called_with_correct_method_for_usdt(monkeypatch):
-    """测试 get_usdt_balance 调用正确的 RPC 方法"""
+    """测试 get_usdt_balance 调用正确的 API 路径"""
     from tron_mcp_server import tron_client
 
     captured = {}
 
-    def fake_post(m, p):
-        captured["method"] = m
-        captured["params"] = p
-        return {"result": "0x0"}
+    def fake_get(path, params=None):
+        captured["path"] = path
+        captured["params"] = params
+        return {"trc20token_balances": []}
 
-    monkeypatch.setattr(tron_client, "_post", fake_post)
-    tron_client.get_usdt_balance("0xaddr")
+    monkeypatch.setattr(tron_client, "_get", fake_get)
+    tron_client.get_usdt_balance("TXYZ")
 
-    assert captured["method"] == "eth_call"
-    # 检查参数结构
-    assert "to" in captured["params"][0]
-    assert "data" in captured["params"][0]
-    assert captured["params"][1] == "latest"
-    # data 应该包含 balanceOf 函数签名
-    assert captured["params"][0]["data"].startswith("0x70a08231")
+    assert captured["path"] == "account"
+    assert captured["params"]["address"] == "TXYZ"
 
 
 def test_post_raises_on_no_result(monkeypatch):
     from tron_mcp_server import tron_client
 
-    monkeypatch.setattr(tron_client, "_post", lambda method, params: {})
+    monkeypatch.setattr(tron_client, "_get", lambda path, params=None: {})
 
     with pytest.raises(ValueError):
         tron_client.get_gas_parameters()

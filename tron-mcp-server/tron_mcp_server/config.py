@@ -7,14 +7,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def get_api_token() -> str:
-    """获取 GetBlock API Token"""
-    return os.getenv("GETBLOCK_API_TOKEN", "")
-
-
 def get_api_url() -> str:
-    """获取 API URL"""
-    return os.getenv("TRON_API_URL", "")
+    """获取 TRONSCAN API URL"""
+    return os.getenv("TRONSCAN_API_URL", "")
+
+
+def get_api_key() -> str:
+    """获取 TRONSCAN API KEY"""
+    return os.getenv("TRONSCAN_API_KEY", "")
 
 
 def get_timeout() -> float:

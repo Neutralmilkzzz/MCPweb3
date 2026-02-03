@@ -34,6 +34,10 @@
 ### 1. 安装依赖
 
 ```bash
+cd tron-mcp-server
+python -m venv .venv
+.
+.venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
@@ -41,7 +45,7 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
-# 编辑 .env 文件，填入你的 GetBlock API Token
+# 编辑 .env 文件，按需配置 TRONSCAN API
 ```
 
 ### 3. 运行 MCP Server
@@ -86,7 +90,7 @@ tron-mcp-server/
 │   ├── server.py         # MCP Server（暴露 tron_* 工具）
 │   ├── call_router.py    # 调用路由器
 │   ├── skills.py         # 内部技能定义
-│   ├── tron_client.py    # GetBlock RPC 客户端
+│   ├── tron_client.py    # TRONSCAN REST 客户端
 │   ├── tx_builder.py     # 交易构建器
 │   ├── validators.py     # 参数校验
 │   ├── formatters.py     # 输出格式化
@@ -108,7 +112,7 @@ python -m pytest tests/ -v
 
 - ✅ 技能 Schema 验证
 - ✅ 路由器功能测试
-- ✅ RPC 客户端解析
+- ✅ TRONSCAN 客户端解析
 - ✅ 交易构建
 - ✅ 参数校验
 - ✅ 格式化输出
@@ -117,8 +121,8 @@ python -m pytest tests/ -v
 ## 技术细节
 
 - **USDT 合约**: `TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t` (TRC20, 6 位小数)
-- **API**: GetBlock JSON-RPC
-- **支持方法**: eth_call, eth_getBalance, eth_gasPrice, eth_getTransactionReceipt, eth_blockNumber
+- **API**: TRONSCAN REST
+- **主要接口**: account, chain/parameters, transaction-info, block
 
 ## 许可证
 
