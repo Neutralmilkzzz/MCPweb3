@@ -10,7 +10,7 @@ venv/
 ENV/
 
 # Project Management / Hackathon Tasks (Ignored per request)
-Tasks/
+Tasks
 PRD.md
 Questions.md
 Questions-Part2.md
