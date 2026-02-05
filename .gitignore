@@ -9,6 +9,9 @@ env/
 venv/
 ENV/
 
+# Environment variables
+.env
+
 # Project Management / Hackathon Tasks (Ignored per request)
 Tasks.md
 PRD.md
