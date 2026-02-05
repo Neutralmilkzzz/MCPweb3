@@ -1,5 +1,6 @@
 """TRON 客户端模块 - TRONSCAN REST API 封装"""
 
+import logging
 import os
 import hashlib
 from typing import Optional
@@ -260,7 +261,7 @@ def check_account_risk(address: str) -> dict:
             return {"is_risky": False, "risk_type": "Safe"}
             
     except Exception as e:
-        print(f"[Warning] Risk check API failed: {e}")
+        logging.warning(f"Risk check API failed: {e}")
         return {"is_risky": False, "risk_type": "Unknown"}
 
 

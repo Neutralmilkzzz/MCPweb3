@@ -373,14 +373,20 @@ def check_recipient_security(to_address: str) -> dict:
     is_risky = risk_info.get("is_risky", False)
     risk_type = risk_info.get("risk_type", "Unknown")
     
+    # Sanitize risk_type to prevent injection of unexpected content
+    # Only allow alphanumeric characters, spaces, and common punctuation
+    sanitized_risk_type = "".join(
+        c for c in str(risk_type)[:50] if c.isalnum() or c in " -_"
+    ).strip() or "Unknown"
+    
     security_warning = None
     if is_risky:
-        security_warning = f"⛔ 严重安全警告: 接收方地址被 TRONSCAN 标记为 【{risk_type}】。转账极可能导致资产丢失！"
+        security_warning = f"⛔ 严重安全警告: 接收方地址被 TRONSCAN 标记为 【{sanitized_risk_type}】。转账极可能导致资产丢失！"
     
     return {
         "checked": True,
         "is_risky": is_risky,
-        "risk_type": risk_type,
+        "risk_type": sanitized_risk_type,
         "detail": risk_info.get("detail"),
         "security_warning": security_warning,
     }
