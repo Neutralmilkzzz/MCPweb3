@@ -16,6 +16,9 @@ SUN_PER_TRX = 1_000_000
 # Default to Mainnet if not set
 USDT_CONTRACT = os.getenv("USDT_CONTRACT_ADDRESS", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
 
+# 交易过期时间（毫秒）
+TX_EXPIRATION_MS = 10 * 60 * 1000
+
 
 def _timestamp_ms() -> int:
     """获取当前时间戳（毫秒）"""
@@ -96,7 +99,7 @@ def _trigger_smart_contract(to: str, amount: float, from_addr: str, token: str) 
         ],
         "ref_block_bytes": ref_block_bytes,
         "ref_block_hash": ref_block_hash,
-        "expiration": timestamp + 60 * 1000,
+        "expiration": timestamp + TX_EXPIRATION_MS,
         "timestamp": timestamp,
     }
     
@@ -126,7 +129,7 @@ def _build_trx_transfer(from_addr: str, to_addr: str, amount: float) -> dict:
         ],
         "ref_block_bytes": ref_block_bytes,
         "ref_block_hash": ref_block_hash,
-        "expiration": timestamp + 60 * 1000,
+        "expiration": timestamp + TX_EXPIRATION_MS,
         "timestamp": timestamp,
     }
     
