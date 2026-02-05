@@ -231,6 +231,11 @@ def check_account_risk(address: str) -> dict:
     基于 TRONSCAN 官方接口 (AccountV2 + Security) 的深度体检。
     返回包含所有标签、黑名单、投诉状态的完整报告。
     
+    ⚠️ 重要安全提醒：
+    - 如果 API 调用失败，将返回 'check_failed': True
+    - 这意味着无法确认地址安全性，建议用户谨慎操作
+    - 只有当所有 API 都成功调用且未发现风险时，才返回 'is_risky': False
+    
     Deep Risk Scanning using official TRONSCAN APIs:
     1. Account Detail API (/api/accountv2): redTag, greyTag, blueTag, feedbackRisk
     2. Security Service API (/api/security/account/data): is_black_list, fraud_token_creator, etc.
@@ -256,6 +261,8 @@ def check_account_risk(address: str) -> dict:
         - risk_type: 主要风险类型 (兼容旧接口)
         - detail: 详细说明 (兼容旧接口)
         - raw_info: 原始风险数据字符串 (兼容旧接口)
+        - check_failed: 是否检查失败（新增）
+        - check_error: 检查失败的原因（新增）
     """
     normalized_addr = _normalize_address(address)
     headers = _get_headers()
@@ -265,7 +272,9 @@ def check_account_risk(address: str) -> dict:
         "is_risky": False,
         "risk_reasons": [],  # 存具体的风险描述
         "tags": {},          # 存所有原始标签，供展示
-        "details": {}        # 存 API 原始数据
+        "details": {},       # 存 API 原始数据
+        "check_failed": False,  # 新增：检查是否失败
+        "check_error": ""       # 新增：失败原因
     }
     
     # Initialize risk indicators
@@ -282,20 +291,29 @@ def check_account_risk(address: str) -> dict:
     data_v2 = {}
     data_sec = {}
     
+    api_call_success = False  # 标记是否有 API 调用成功
+    
     # --- Layer 1: Account V2 API (查标签 + 投诉) ---
     try:
         account_url = "https://apilist.tronscanapi.com/api/accountv2"
         response = httpx.get(account_url, params={"address": normalized_addr}, headers=headers, timeout=TIMEOUT)
         data_v2 = response.json()
         
-        red_tag = data_v2.get("redTag") or ""
-        grey_tag = data_v2.get("greyTag") or ""
-        blue_tag = data_v2.get("blueTag") or ""
-        public_tag = data_v2.get("publicTag") or ""
-        feedback_risk = bool(data_v2.get("feedbackRisk", False))
+        if response.status_code == 200:
+            api_call_success = True
+            red_tag = data_v2.get("redTag") or ""
+            grey_tag = data_v2.get("greyTag") or ""
+            blue_tag = data_v2.get("blueTag") or ""
+            public_tag = data_v2.get("publicTag") or ""
+            feedback_risk = bool(data_v2.get("feedbackRisk", False))
+        else:
+            report["check_failed"] = True
+            report["check_error"] = f"AccountV2 API 返回 {response.status_code}"
         
     except Exception as e:
         logging.warning(f"Account detail API failed for {normalized_addr}: {e}")
+        report["check_failed"] = True
+        report["check_error"] = f"AccountV2 API 调用失败: {str(e)}"
     
     # 保存所有标签（无论是否有风险，蓝标对用户也有参考价值）
     report["tags"] = {
@@ -329,13 +347,22 @@ def check_account_risk(address: str) -> dict:
         response = httpx.get(security_url, params={"address": normalized_addr}, headers=headers, timeout=TIMEOUT)
         data_sec = response.json()
         
-        is_black_list = bool(data_sec.get("is_black_list", False))
-        has_fraud_transaction = bool(data_sec.get("has_fraud_transaction", False))
-        fraud_token_creator = bool(data_sec.get("fraud_token_creator", False))
-        send_ad_by_memo = bool(data_sec.get("send_ad_by_memo", False))
+        if response.status_code == 200:
+            api_call_success = True
+            is_black_list = bool(data_sec.get("is_black_list", False))
+            has_fraud_transaction = bool(data_sec.get("has_fraud_transaction", False))
+            fraud_token_creator = bool(data_sec.get("fraud_token_creator", False))
+            send_ad_by_memo = bool(data_sec.get("send_ad_by_memo", False))
+        else:
+            if not report["check_failed"]:  # 如果第一个 API 还没失败
+                report["check_failed"] = True
+                report["check_error"] = f"Security API 返回 {response.status_code}"
         
     except Exception as e:
         logging.warning(f"Security service API failed for {normalized_addr}: {e}")
+        if not report["check_failed"]:  # 如果第一个 API 还没失败
+            report["check_failed"] = True
+            report["check_error"] = f"Security API 调用失败: {str(e)}"
     
     # 🚨 风险判定逻辑 B: 行为类
     if is_black_list:
@@ -357,17 +384,26 @@ def check_account_risk(address: str) -> dict:
     # 保存 API 原始数据
     report["details"] = {"v2": data_v2, "sec": data_sec}
     
+    # 如果所有 API 都失败了，标记为检查失败，但不自动设为有风险
+    if not api_call_success:
+        report["is_risky"] = False  # 不自动标记为有风险，让用户决定
+        report["risk_reasons"].append("🔍 安全检查失败：无法获取风险信息")
+    
     # Build raw_info for AI Agent transparency (兼容旧接口)
     raw_info = (
         f"redTag:[{red_tag}] greyTag:[{grey_tag}] blueTag:[{blue_tag}] "
         f"publicTag:[{public_tag}] feedbackRisk:[{feedback_risk}] "
         f"is_black_list:[{is_black_list}] has_fraud_transaction:[{has_fraud_transaction}] "
-        f"fraud_token_creator:[{fraud_token_creator}] send_ad_by_memo:[{send_ad_by_memo}]"
+        f"fraud_token_creator:[{fraud_token_creator}] send_ad_by_memo:[{send_ad_by_memo}] "
+        f"check_failed:[{report['check_failed']}] check_error:[{report['check_error']}]"
     )
     report["raw_info"] = raw_info
     
     # --- 兼容旧接口：设置 risk_type 和 detail ---
-    if red_tag:
+    if report["check_failed"]:
+        report["risk_type"] = "Check Failed"
+        report["detail"] = f"安全检查失败: {report['check_error']}。建议谨慎操作，不要向此地址转账。"
+    elif red_tag:
         report["risk_type"] = red_tag
         report["detail"] = f"TRONSCAN flagged this address as {red_tag}."
     elif is_black_list:

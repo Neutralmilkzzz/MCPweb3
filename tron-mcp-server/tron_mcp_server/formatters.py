@@ -111,6 +111,10 @@ def format_account_safety(address: str, risk_info: dict) -> dict:
     无论是红标 Scam、蓝标 Binance、灰标、还是被投诉，全部展示给用户。
     如果是蓝标，用户看了也放心；如果是红标，用户看着死心。
     
+    ⚠️ 安全优先原则：
+    - 如果检查失败 (check_failed=True)，地址将被标记为有风险
+    - 无法确认安全的地址应该被视为危险
+    
     Args:
         address: TRON 地址
         risk_info: 来自 tron_client.check_account_risk() 的结果
@@ -123,10 +127,16 @@ def format_account_safety(address: str, risk_info: dict) -> dict:
     detail = risk_info.get("detail", "")
     risk_reasons = risk_info.get("risk_reasons", [])
     tags = risk_info.get("tags", {})
+    check_failed = risk_info.get("check_failed", False)
+    check_error = risk_info.get("check_error", "")
     
     # 构建预警信息
     warnings = []
-    if is_risky and risk_reasons:
+    if check_failed:
+        warnings.append("🚨 严重警告：安全检查完全失败，无法确认地址安全性！")
+        warnings.append(f"❌ 失败原因：{check_error}")
+        warnings.append("💡 建议：不要向此地址转账，可在 TRONSCAN 官网手动检查")
+    elif is_risky and risk_reasons:
         # 使用详细的风险原因列表
         warnings.extend(risk_reasons)
     elif is_risky:
@@ -146,11 +156,16 @@ def format_account_safety(address: str, risk_info: dict) -> dict:
         tag_info.append(f"📋 公共标签: {tags['Public']}")
     
     # 构建安全状态
-    is_safe = not is_risky
-    safety_status = "安全" if is_safe else f"危险（{risk_type}）"
+    is_safe = not is_risky and not check_failed
+    if check_failed:
+        safety_status = "检查失败 - 无法确认安全性"
+    else:
+        safety_status = "安全" if is_safe else f"危险（{risk_type}）"
     
     # 构建摘要
-    if is_safe:
+    if check_failed:
+        summary = f"地址 {address} 安全检查失败：🚨 无法获取风险信息！{check_error} 建议谨慎操作，不要转账。"
+    elif is_safe:
         if risk_type == "Unknown":
             summary = f"地址 {address} 安全检查完成：⚠️ 无法获取风险信息，请谨慎操作。"
         elif tags.get("Blue"):
@@ -172,6 +187,8 @@ def format_account_safety(address: str, risk_info: dict) -> dict:
         "tag_info": tag_info,
         "warnings": warnings,
         "detail": detail,
+        "check_failed": check_failed,
+        "check_error": check_error,
         "summary": summary,
     }
 

@@ -349,15 +349,21 @@ def check_recipient_security(to_address: str) -> dict:
     这是 Phase 2 安全性开发的核心功能：
     集成 TRONSCAN 官方黑名单数据，识别恶意地址（如诈骗、钓鱼等）
     
+    ⚠️ 安全策略：
+    - 如果检查成功且发现风险 → 拦截交易
+    - 如果检查失败（API 不可用）→ 不拦截，但发出警告
+    - 用户可以通过 force_execution=True 强制执行
+    
     Args:
         to_address: 接收方 TRON 地址
     
     Returns:
         包含安全检查结果的字典:
         - checked: 是否成功完成检查
-        - is_risky: 地址是否被标记为恶意
+        - is_risky: 地址是否被标记为恶意（仅当检查成功时有效）
         - risk_type: 风险类型
-        - security_warning: 高优先级安全警告 (仅当 is_risky=True)
+        - check_failed: 检查是否失败
+        - security_warning: 高优先级安全警告
     """
     try:
         risk_info = tron_client.check_account_risk(to_address)
@@ -365,13 +371,16 @@ def check_recipient_security(to_address: str) -> dict:
         logging.warning(f"安全检查失败 ({to_address}): {e}")
         return {
             "checked": False,
-            "is_risky": False,
-            "risk_type": "Unknown",
-            "security_warning": None,
+            "is_risky": False,  # 检查失败时不标记为有风险
+            "risk_type": "Check Failed",
+            "check_failed": True,
+            "check_error": str(e),
+            "security_warning": f"⚠️ 安全检查失败：无法确认接收方地址安全性 ({str(e)[:100]})。建议谨慎操作。",
         }
     
     is_risky = risk_info.get("is_risky", False)
     risk_type = risk_info.get("risk_type", "Unknown")
+    check_failed = risk_info.get("check_failed", False)
     
     # Sanitize risk_type to prevent injection of unexpected content
     # Only allow alphanumeric characters, spaces, and common punctuation
@@ -380,13 +389,16 @@ def check_recipient_security(to_address: str) -> dict:
     ).strip() or "Unknown"
     
     security_warning = None
-    if is_risky:
+    if check_failed:
+        security_warning = f"⚠️ 安全检查失败：无法确认接收方地址安全性。建议谨慎操作。"
+    elif is_risky:
         security_warning = f"⛔ 严重安全警告: 接收方地址被 TRONSCAN 标记为 【{sanitized_risk_type}】。转账极可能导致资产丢失！"
     
     return {
         "checked": True,
         "is_risky": is_risky,
         "risk_type": sanitized_risk_type,
+        "check_failed": check_failed,
         "detail": risk_info.get("detail"),
         "security_warning": security_warning,
     }
@@ -442,8 +454,9 @@ def build_unsigned_tx(
     if check_security:
         security_check = check_recipient_security(to_address)
         
-        # 🚨 零容忍熔断机制：检测到任何风险，且没有强制执行 -> 拦截！
-        if security_check.get("is_risky") and not force_execution:
+        # 🚨 零容忍熔断机制：只有在检查成功且发现风险时才拦截
+        # 如果检查失败，不拦截交易但会显示警告
+        if security_check.get("checked") and security_check.get("is_risky") and not force_execution:
             # 获取详细的风险原因
             risk_info = tron_client.check_account_risk(to_address)
             risk_reasons = risk_info.get("risk_reasons", [])
@@ -464,7 +477,7 @@ def build_unsigned_tx(
             }
         
         # 如果强制执行了，记录日志
-        if security_check.get("is_risky") and force_execution:
+        if security_check.get("checked") and security_check.get("is_risky") and force_execution:
             logging.warning(f"⚠️ 用户强制忽略风险，向 {to_address} 转账... 风险类型: {security_check.get('risk_type')}")
 
     # 策略二：预先检查发送方余额，拒绝必死交易
