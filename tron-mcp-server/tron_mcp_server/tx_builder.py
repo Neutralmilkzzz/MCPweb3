@@ -32,18 +32,36 @@ def _get_ref_block() -> tuple:
 
 
 def _encode_transfer(to: str, amount: int) -> str:
-    """编码 TRC20 transfer 函数调用"""
+    """
+    编码 TRC20 transfer 函数调用
+    
+    Args:
+        to: 接收方 TRON 地址 (Base58Check 格式, 以 'T' 开头)
+        amount: 转账金额 (最小单位)
+    
+    Returns:
+        编码后的函数调用数据 (method signature + address + amount)
+    
+    Raises:
+        ValueError: 地址格式无效时抛出
+    """
     method_sig = "a9059cbb"
     
-    # 1. Base58 解码 -> Hex
-    raw_bytes = base58.b58decode_check(to)
+    # 1. Base58Check 解码 -> Hex
+    try:
+        raw_bytes = base58.b58decode_check(to)
+    except ValueError as e:
+        raise ValueError(f"无效的 TRON 地址格式: {to}") from e
+    
     hex_addr = raw_bytes.hex()
     
-    # 2. 去掉 '41' 前缀 (TRON 地址前缀)
-    if hex_addr.startswith('41'):
-        hex_addr = hex_addr[2:]
+    # 2. 去掉 '41' 前缀 (TRON 主网地址前缀)
+    # TRON 地址解码后必须以 '41' 开头
+    if not hex_addr.startswith('41'):
+        raise ValueError(f"无效的 TRON 地址: 缺少 41 前缀")
+    hex_addr = hex_addr[2:]
     
-    # 3. 补齐到 64 字符 (32字节)
+    # 3. 补齐到 64 字符 (32字节, EVM/TVM 标准)
     addr_hex = hex_addr.zfill(64)
     
     amount_hex = hex(amount)[2:].zfill(64)
