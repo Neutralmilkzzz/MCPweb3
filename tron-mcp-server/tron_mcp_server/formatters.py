@@ -106,7 +106,10 @@ def format_account_status(account_status: dict) -> dict:
 
 def format_account_safety(address: str, risk_info: dict) -> dict:
     """
-    格式化账户安全检查结果
+    格式化账户安全检查结果（全量反馈模式）
+    
+    无论是红标 Scam、蓝标 Binance、灰标、还是被投诉，全部展示给用户。
+    如果是蓝标，用户看了也放心；如果是红标，用户看着死心。
     
     Args:
         address: TRON 地址
@@ -118,13 +121,29 @@ def format_account_safety(address: str, risk_info: dict) -> dict:
     is_risky = risk_info.get("is_risky", False)
     risk_type = risk_info.get("risk_type", "Unknown")
     detail = risk_info.get("detail", "")
+    risk_reasons = risk_info.get("risk_reasons", [])
+    tags = risk_info.get("tags", {})
     
     # 构建预警信息
     warnings = []
-    if is_risky:
+    if is_risky and risk_reasons:
+        # 使用详细的风险原因列表
+        warnings.extend(risk_reasons)
+    elif is_risky:
         warnings.append(f"⛔ 警告：该地址已被 TRONSCAN 标记为 {risk_type}")
         if detail:
             warnings.append(f"详情：{detail}")
+    
+    # 构建标签展示信息
+    tag_info = []
+    if tags.get("Red"):
+        tag_info.append(f"🔴 红标: {tags['Red']}")
+    if tags.get("Grey"):
+        tag_info.append(f"⚪ 灰标: {tags['Grey']}")
+    if tags.get("Blue"):
+        tag_info.append(f"🔵 蓝标: {tags['Blue']} (官方认证)")
+    if tags.get("Public"):
+        tag_info.append(f"📋 公共标签: {tags['Public']}")
     
     # 构建安全状态
     is_safe = not is_risky
@@ -134,10 +153,13 @@ def format_account_safety(address: str, risk_info: dict) -> dict:
     if is_safe:
         if risk_type == "Unknown":
             summary = f"地址 {address} 安全检查完成：⚠️ 无法获取风险信息，请谨慎操作。"
+        elif tags.get("Blue"):
+            summary = f"地址 {address} 安全检查完成：✅ 地址安全，且为官方认证机构 ({tags['Blue']})。"
         else:
             summary = f"地址 {address} 安全检查完成：✅ 未在已知风险数据库中发现该地址。"
     else:
-        summary = f"地址 {address} 安全检查完成：⛔ 危险！该地址已被标记为 {risk_type}，请勿与此地址进行交易。"
+        reasons_text = " | ".join(risk_reasons) if risk_reasons else risk_type
+        summary = f"地址 {address} 安全检查完成：⛔ 危险！{reasons_text}"
     
     return {
         "address": address,
@@ -145,6 +167,9 @@ def format_account_safety(address: str, risk_info: dict) -> dict:
         "is_risky": is_risky,
         "risk_type": risk_type,
         "safety_status": safety_status,
+        "risk_reasons": risk_reasons,
+        "tags": tags,
+        "tag_info": tag_info,
         "warnings": warnings,
         "detail": detail,
         "summary": summary,

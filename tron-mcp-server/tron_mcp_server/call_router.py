@@ -50,9 +50,13 @@ def _check_account_safety(addr: str) -> dict:
     return formatters.format_account_safety(addr, risk_info)
 
 
-def _build_unsigned_tx(from_addr: str, to_addr: str, amount: float, token: str = "USDT") -> dict:
+def _build_unsigned_tx(from_addr: str, to_addr: str, amount: float, token: str = "USDT", force_execution: bool = False) -> dict:
     """构建未签名交易（可被测试 mock）"""
-    tx_result = tx_builder.build_unsigned_tx(from_addr, to_addr, amount, token)
+    tx_result = tx_builder.build_unsigned_tx(from_addr, to_addr, amount, token, force_execution=force_execution)
+    
+    # 检查是否被熔断拦截
+    if tx_result.get("blocked"):
+        return tx_result
     
     # 提取发送方检查结果（如果有）
     sender_check = tx_result.get("sender_check")
@@ -247,6 +251,7 @@ def _handle_build_tx(params: dict) -> dict:
     to_addr = params.get("to")
     amount = params.get("amount")
     token = params.get("token", "USDT")
+    force_execution = params.get("force_execution", False)
 
     # 参数校验
     if not from_addr:
@@ -264,7 +269,7 @@ def _handle_build_tx(params: dict) -> dict:
         return _error_response("invalid_amount", f"金额必须为正数: {amount}")
 
     try:
-        return _build_unsigned_tx(from_addr, to_addr, amount, token)
+        return _build_unsigned_tx(from_addr, to_addr, amount, token, force_execution)
     except tx_builder.InsufficientBalanceError as e:
         # 策略二：余额不足时返回详细的错误信息，拒绝构建交易以节省 Gas
         return {
