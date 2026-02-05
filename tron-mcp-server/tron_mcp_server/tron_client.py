@@ -12,9 +12,6 @@ import base58
 USDT_CONTRACT_BASE58 = os.getenv("USDT_CONTRACT_ADDRESS", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
 USDT_CONTRACT_HEX = os.getenv("USDT_CONTRACT_ADDRESS_HEX", "0x41a614f803b6fd780986a42c78ec9c7f77e6ded13c")
 
-# Extended Risk Keywords (Catch "Gray" and "Black" lists)
-RISK_KEYWORDS = ["scam", "phishing", "suspicious", "risk", "fraud", "hack", "unsafe", "ban", "gray"]
-
 # 默认 TRONSCAN API URL
 DEFAULT_API_URL = "https://apilist.tronscan.org/api"
 
@@ -234,9 +231,14 @@ def get_latest_block_info() -> dict:
 
 def check_account_risk(address: str) -> dict:
     """
-    Deep Risk Scanning (Phase 3):
-    1. Full Metadata Scan: Checks redTag, reputation tag, and explanation text.
-    2. Permission Audit: Checks for Honeypot/Hijacked permissions.
+    Deep Risk Scanning using official TRONSCAN APIs:
+    1. Account Detail API (/api/accountv2): redTag, greyTag, blueTag, feedbackRisk
+    2. Security Service API (/api/security/account/data): is_black_list, fraud_token_creator, etc.
+    
+    Risk Detection Logic (as per TRONSCAN guidelines):
+    - redTag is not empty → High Risk (Scam/Phishing)
+    - feedbackRisk is true → User-reported Risk
+    - is_black_list is true → Blacklisted by stablecoin issuers
     
     Args:
         address: TRON 地址 (Base58Check 格式)
@@ -244,69 +246,131 @@ def check_account_risk(address: str) -> dict:
     Returns:
         包含风险信息的字典:
         - is_risky: 地址是否被标记为恶意
-        - risk_type: 风险类型 (e.g. "Scam", "Phishing", "Suspicious Activity") 或 "Safe"/"Check_Failed"
+        - risk_type: 风险类型 (e.g. "Scam", "Phishing", "Blacklisted") 或 "Safe"/"Check_Failed"
         - detail: 详细说明
         - raw_info: 原始风险数据 (用于 AI Agent 解释给用户)
     """
-    url = "https://apilist.tronscanapi.com/api/account"
-    params = {"address": _normalize_address(address)}
+    normalized_addr = _normalize_address(address)
     headers = _get_headers()
-
+    
+    # Initialize risk indicators
+    red_tag = ""
+    grey_tag = ""
+    blue_tag = ""
+    public_tag = ""
+    feedback_risk = False
+    is_black_list = False
+    has_fraud_transaction = False
+    fraud_token_creator = False
+    send_ad_by_memo = False
+    
+    # --- Layer 1: Account Detail API (Basic Risk Tags) ---
     try:
-        response = httpx.get(url, params=params, headers=headers, timeout=TIMEOUT)
-        data = response.json()
+        account_url = "https://apilist.tronscanapi.com/api/accountv2"
+        response = httpx.get(account_url, params={"address": normalized_addr}, headers=headers, timeout=TIMEOUT)
+        account_data = response.json()
         
-        # --- Layer 1: Deep Semantic Scan (Metadata Analysis) ---
-        # Extract all potential risk indicators (handle None values properly)
-        red_tag = (data.get("redTag") or "").lower()
+        red_tag = account_data.get("redTag") or ""
+        grey_tag = account_data.get("greyTag") or ""
+        blue_tag = account_data.get("blueTag") or ""
+        public_tag = account_data.get("publicTag") or ""
+        feedback_risk = bool(account_data.get("feedbackRisk", False))
         
-        reputation = data.get("reputation") or {}
-        rep_tag = (reputation.get("tag") or "").lower()
-        explanation = (reputation.get("explanation") or "").lower()
-        
-        # Combine all descriptions into one context string for risk analysis
-        raw_info = f"RedTag:[{red_tag}] RepTag:[{rep_tag}] Note:[{explanation}]"
-        
-        # If ANY negative keyword appears in ANY field, flag it.
-        is_semantic_risk = any(keyword in raw_info for keyword in RISK_KEYWORDS)
-        
-        if is_semantic_risk:
-            # Determine risk_type based on which field triggered the match
-            if red_tag:
-                risk_type = red_tag.capitalize()
-            elif rep_tag:
-                risk_type = rep_tag.capitalize()
-            else:
-                risk_type = "Suspicious Activity"
-            
-            return {
-                "is_risky": True,
-                "risk_type": risk_type,
-                "detail": "Security Alert: Address flagged in TRONSCAN database.",
-                "raw_info": raw_info  # AI Agent will read this to generate the warning
-            }
-
-        # --- Layer 2: Permission Audit (Anti-Honeypot) ---
-        owner_perm = data.get("ownerPermission")
-        if owner_perm and "keys" in owner_perm:
-            keys = owner_perm["keys"]
-            if len(keys) > 0:
-                controller = keys[0].get("address")
-                # Simple heuristic: If controller != address, it might be a honeypot
-                if controller and controller != _normalize_address(address):
-                    return {
-                        "is_risky": True,
-                        "risk_type": "Honeypot/Hijacked",
-                        "detail": f"Critical: Account control delegated to {controller}.",
-                        "raw_info": "Owner Permission Mismatch"
-                    }
-
-        return {"is_risky": False, "risk_type": "Safe", "detail": "Passed all security checks."}
-            
     except Exception as e:
-        # Fail-safe: If API fails, Log it but don't block (or block, depending on policy)
-        logging.warning(f"Risk check API failed: {e}")
-        return {"is_risky": False, "risk_type": "Check_Failed", "detail": str(e)}
+        logging.warning(f"Account detail API failed for {normalized_addr}: {e}")
+    
+    # --- Layer 2: Security Service API (Detailed Security Checks) ---
+    try:
+        security_url = "https://apilist.tronscanapi.com/api/security/account/data"
+        response = httpx.get(security_url, params={"address": normalized_addr}, headers=headers, timeout=TIMEOUT)
+        security_data = response.json()
+        
+        is_black_list = bool(security_data.get("is_black_list", False))
+        has_fraud_transaction = bool(security_data.get("has_fraud_transaction", False))
+        fraud_token_creator = bool(security_data.get("fraud_token_creator", False))
+        send_ad_by_memo = bool(security_data.get("send_ad_by_memo", False))
+        
+    except Exception as e:
+        logging.warning(f"Security service API failed for {normalized_addr}: {e}")
+    
+    # Build raw_info for AI Agent transparency
+    raw_info = (
+        f"redTag:[{red_tag}] greyTag:[{grey_tag}] blueTag:[{blue_tag}] "
+        f"publicTag:[{public_tag}] feedbackRisk:[{feedback_risk}] "
+        f"is_black_list:[{is_black_list}] has_fraud_transaction:[{has_fraud_transaction}] "
+        f"fraud_token_creator:[{fraud_token_creator}] send_ad_by_memo:[{send_ad_by_memo}]"
+    )
+    
+    # --- Core Risk Detection Logic (per TRONSCAN guidelines) ---
+    # Priority 1: redTag (Official high-risk label)
+    if red_tag:
+        return {
+            "is_risky": True,
+            "risk_type": red_tag,  # e.g. "Scam", "Phishing"
+            "detail": f"TRONSCAN flagged this address as {red_tag}.",
+            "raw_info": raw_info
+        }
+    
+    # Priority 2: is_black_list (Stablecoin blacklist)
+    if is_black_list:
+        return {
+            "is_risky": True,
+            "risk_type": "Blacklisted",
+            "detail": "Address is on stablecoin (e.g. USDT) blacklist.",
+            "raw_info": raw_info
+        }
+    
+    # Priority 3: feedbackRisk (User reports)
+    if feedback_risk:
+        return {
+            "is_risky": True,
+            "risk_type": "User Reported",
+            "detail": "Address has been reported by multiple users as risky.",
+            "raw_info": raw_info
+        }
+    
+    # Priority 4: fraud_token_creator (Fake token creator)
+    if fraud_token_creator:
+        return {
+            "is_risky": True,
+            "risk_type": "Fraud Token Creator",
+            "detail": "Address has created fraudulent/fake tokens.",
+            "raw_info": raw_info
+        }
+    
+    # Priority 5: has_fraud_transaction (Fraud transaction history)
+    if has_fraud_transaction:
+        return {
+            "is_risky": True,
+            "risk_type": "Fraud Transaction",
+            "detail": "Address has fraud transaction history.",
+            "raw_info": raw_info
+        }
+    
+    # Priority 6: greyTag (Lower risk, but still flagged)
+    if grey_tag:
+        return {
+            "is_risky": True,
+            "risk_type": f"Grey: {grey_tag}",
+            "detail": f"Address has a grey tag: {grey_tag}.",
+            "raw_info": raw_info
+        }
+    
+    # Priority 7: send_ad_by_memo (Spam account - warning only)
+    if send_ad_by_memo:
+        return {
+            "is_risky": True,
+            "risk_type": "Spam Account",
+            "detail": "Address frequently sends advertisements via memo (spam behavior).",
+            "raw_info": raw_info
+        }
+    
+    return {
+        "is_risky": False,
+        "risk_type": "Safe",
+        "detail": "Passed all security checks.",
+        "raw_info": raw_info
+    }
 
 
 def get_account_status(address: str) -> dict:
