@@ -19,6 +19,7 @@
 - [快速开始](#快速开始)
 - [MCP 工具列表](#mcp-工具列表)
 - [项目结构](#项目结构)
+- [更新日志](#更新日志)
 - [技术细节](#技术细节)
 - [常见问题 FAQ](#常见问题-faq)
 - [贡献指南](#贡献指南)
@@ -164,6 +165,10 @@ python -m tron_mcp_server.server --sse
 └── README.md                 # 本文件
 ```
 
+## 更新日志
+
+请参阅 [Changelog.md](Changelog.md) 获取最新记录。
+
 ## 技术细节
 
 - **USDT 合约**: `TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t` (TRC20, 6 位小数)
@@ -273,6 +278,7 @@ A Model Context Protocol (MCP) Server that provides AI Agents with TRON blockcha
 - [Quick Start](#quick-start-en)
 - [MCP Tools](#mcp-tools-en)
 - [Project Structure](#project-structure-en)
+- [Changelog](#changelog-en)
 - [Technical Details](#technical-details-en)
 - [FAQ](#faq-en)
 - [Contributing](#contributing-en)
@@ -427,6 +433,12 @@ Edit `claude_desktop_config.json`:
 ├── Changelog.md              # Update log
 └── README.md                 # This file
 ```
+
+<a name="changelog-en"></a>
+
+## Changelog
+
+See [Changelog.md](Changelog.md) for the latest updates.
 
 <a name="technical-details-en"></a>
 
