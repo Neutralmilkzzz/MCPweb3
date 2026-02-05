@@ -104,6 +104,53 @@ def format_account_status(account_status: dict) -> dict:
     }
 
 
+def format_account_safety(address: str, risk_info: dict) -> dict:
+    """
+    格式化账户安全检查结果
+    
+    Args:
+        address: TRON 地址
+        risk_info: 来自 tron_client.check_account_risk() 的结果
+    
+    Returns:
+        包含安全检查结果的字典
+    """
+    is_risky = risk_info.get("is_risky", False)
+    risk_type = risk_info.get("risk_type", "Unknown")
+    detail = risk_info.get("detail", "")
+    
+    # 构建预警信息
+    warnings = []
+    if is_risky:
+        warnings.append(f"⛔ 警告：该地址已被 TRONSCAN 标记为 {risk_type}")
+        if detail:
+            warnings.append(f"详情：{detail}")
+    
+    # 构建安全状态
+    is_safe = not is_risky
+    safety_status = "安全" if is_safe else f"危险（{risk_type}）"
+    
+    # 构建摘要
+    if is_safe:
+        if risk_type == "Unknown":
+            summary = f"地址 {address} 安全检查完成：⚠️ 无法获取风险信息，请谨慎操作。"
+        else:
+            summary = f"地址 {address} 安全检查完成：✅ 未在已知风险数据库中发现该地址。"
+    else:
+        summary = f"地址 {address} 安全检查完成：⛔ 危险！该地址已被标记为 {risk_type}，请勿与此地址进行交易。"
+    
+    return {
+        "address": address,
+        "is_safe": is_safe,
+        "is_risky": is_risky,
+        "risk_type": risk_type,
+        "safety_status": safety_status,
+        "warnings": warnings,
+        "detail": detail,
+        "summary": summary,
+    }
+
+
 def format_error(error_code: str, message: str) -> dict:
     """格式化错误响应"""
     return {

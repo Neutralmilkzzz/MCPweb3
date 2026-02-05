@@ -44,6 +44,12 @@ def _get_network_status() -> dict:
     return formatters.format_network_status(block_height)
 
 
+def _check_account_safety(addr: str) -> dict:
+    """检查账户安全性（可被测试 mock）"""
+    risk_info = tron_client.check_account_risk(addr)
+    return formatters.format_account_safety(addr, risk_info)
+
+
 def _build_unsigned_tx(from_addr: str, to_addr: str, amount: float, token: str = "USDT") -> dict:
     """构建未签名交易（可被测试 mock）"""
     tx_result = tx_builder.build_unsigned_tx(from_addr, to_addr, amount, token)
@@ -113,6 +119,9 @@ def call(action: str, params: dict = None) -> dict:
 
     elif action == "get_account_status":
         return _handle_get_account_status(params)
+
+    elif action == "check_account_safety":
+        return _handle_check_account_safety(params)
 
     elif action == "build_tx":
         return _handle_build_tx(params)
@@ -213,6 +222,21 @@ def _handle_get_account_status(params: dict) -> dict:
     try:
         account_status = tron_client.get_account_status(address)
         return formatters.format_account_status(account_status)
+    except Exception as e:
+        return _error_response("rpc_error", str(e))
+
+
+def _handle_check_account_safety(params: dict) -> dict:
+    """处理 check_account_safety 动作 - 检查账户是否为恶意地址"""
+    address = params.get("address")
+    if not address:
+        return _error_response("missing_param", "缺少必填参数: address")
+
+    if not validators.is_valid_address(address):
+        return _error_response("invalid_address", f"无效的地址格式: {address}")
+
+    try:
+        return _check_account_safety(address)
     except Exception as e:
         return _error_response("rpc_error", str(e))
 

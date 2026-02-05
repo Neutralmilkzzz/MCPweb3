@@ -106,6 +106,29 @@ def tron_build_tx(
     })
 
 
+@mcp.tool()
+def tron_check_account_safety(address: str) -> dict:
+    """
+    检查指定地址是否为恶意地址（钓鱼、诈骗等）。
+    
+    使用 TRONSCAN 官方黑名单 API 检查地址是否被标记为恶意地址。
+    建议在进行转账前调用此工具确认接收方地址的安全性。
+    
+    Args:
+        address: TRON 地址（Base58 格式以 T 开头，或 Hex 格式以 0x41 开头）
+    
+    Returns:
+        包含 is_safe, is_risky, risk_type, safety_status, warnings, summary 的结果
+        - is_safe: 地址是否安全（True/False）
+        - is_risky: 地址是否有风险标记（True/False）
+        - risk_type: 风险类型（Safe/Scam/Phishing/Unknown 等）
+        - safety_status: 安全状态描述
+        - warnings: 警告信息列表
+        - summary: 检查结果摘要
+    """
+    return call_router.call("check_account_safety", {"address": address})
+
+
 # ============ 兼容模式：单入口（可选）============
 
 @mcp.tool()

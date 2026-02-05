@@ -33,6 +33,11 @@ SKILLS = [
         "params": {"address": "TRON 地址"},
     },
     {
+        "action": "check_account_safety",
+        "desc": "检查地址是否为恶意地址（钓鱼、诈骗等）",
+        "params": {"address": "TRON 地址"},
+    },
+    {
         "action": "build_tx",
         "desc": "构建未签名转账交易（自动检测接收方账户状态并预警）",
         "params": {
