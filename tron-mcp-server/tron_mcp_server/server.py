@@ -84,25 +84,36 @@ def tron_build_tx(
     from_address: str,
     to_address: str,
     amount: float,
-    token: str = "USDT"
+    token: str = "USDT",
+    force_execution: bool = False
 ) -> dict:
     """
     构建未签名的转账交易。仅构建交易，不执行签名和广播。
+    
+    重要安全说明：
+    此工具会对接收方地址进行安全扫描。如果检测到接收方存在风险，
+    默认会拒绝构建交易（零容忍熔断机制）。
+    
+    如需强制执行（用户明确知晓风险后坚持转账），请设置 force_execution=True。
     
     Args:
         from_address: 发送方地址
         to_address: 接收方地址
         amount: 转账金额（正数）
         token: 代币类型，USDT 或 TRX，默认 USDT
+        force_execution: 强制执行开关。当接收方存在风险时，只有设置为 True 才能继续构建交易。
+                        仅在用户明确说"我知道有风险，但我就是要转"时才设置为 True。
     
     Returns:
-        包含 unsigned_tx, summary 的结果
+        包含 unsigned_tx, summary 的结果。
+        如果接收方有风险且 force_execution=False，返回拦截信息。
     """
     return call_router.call("build_tx", {
         "from": from_address,
         "to": to_address,
         "amount": amount,
         "token": token,
+        "force_execution": force_execution,
     })
 
 

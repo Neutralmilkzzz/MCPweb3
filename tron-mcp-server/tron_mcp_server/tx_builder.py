@@ -400,6 +400,7 @@ def build_unsigned_tx(
     check_recipient: bool = True,
     check_balance: bool = True,
     check_security: bool = True,
+    force_execution: bool = False,
 ) -> dict:
     """
     构建未签名交易
@@ -414,9 +415,13 @@ def build_unsigned_tx(
             启用后会在构建交易前检查余额，拒绝必死交易以节省 Gas
         check_security: 是否检查接收方地址安全性 (默认 True)
             启用后会检查接收方是否在 TRONSCAN 黑名单中
+        force_execution: 强制执行开关 (默认 False)
+            当检测到接收方存在任何风险时，默认拒绝构建交易（零容忍熔断）。
+            只有用户明确说"我知道有风险，但我就是要转"，才设置为 True 放行。
 
     Returns:
         TRON 标准未签名交易结构 (txID + raw_data)
+        如果接收方有风险且 force_execution=False，返回熔断拦截信息
         如果是 TRC20 转账且 check_recipient=True，还会包含接收方账户预警信息
         如果 check_balance=True，还会包含发送方余额检查结果
         如果 check_security=True 且接收方为恶意地址，还会包含 security_warning
@@ -436,6 +441,31 @@ def build_unsigned_tx(
     security_check = None
     if check_security:
         security_check = check_recipient_security(to_address)
+        
+        # 🚨 零容忍熔断机制：检测到任何风险，且没有强制执行 -> 拦截！
+        if security_check.get("is_risky") and not force_execution:
+            # 获取详细的风险原因
+            risk_info = tron_client.check_account_risk(to_address)
+            risk_reasons = risk_info.get("risk_reasons", [])
+            reasons_text = "\n".join(risk_reasons) if risk_reasons else security_check.get("detail", "Unknown risk")
+            
+            return {
+                "blocked": True,
+                "error": False,  # 不是错误，是主动拦截
+                "summary": (
+                    f"🛑 交易已拦截 (Transaction Blocked) 🛑\n\n"
+                    f"检测到接收方地址 {to_address} 存在以下风险:\n"
+                    f"{reasons_text}\n\n"
+                    f"为了保护资金安全，系统拒绝构建此交易。\n"
+                    f"如果您必须转账，请明确告知'强制执行'，或在工具调用中设置 force_execution=True。"
+                ),
+                "risk_reasons": risk_reasons,
+                "security_check": security_check,
+            }
+        
+        # 如果强制执行了，记录日志
+        if security_check.get("is_risky") and force_execution:
+            logging.warning(f"⚠️ 用户强制忽略风险，向 {to_address} 转账... 风险类型: {security_check.get('risk_type')}")
 
     # 策略二：预先检查发送方余额，拒绝必死交易
     # 在 Builder 阶段拦截余额不足的交易是 0 成本的
