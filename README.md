@@ -267,6 +267,13 @@ python -m tron_mcp_server.server --sse
 
 > 以下是经过系统审计后识别的已知问题，按严重程度排序。所有问题均已有测试覆盖（见 `test_known_issues.py`）。
 
+### ✅ 已修复：地址校验漏洞 + TRX 余额查询异常 (v1.0.2)
+
+| 项目 | 说明 |
+|------|------|
+| **validators.py** | 非 34 字符的 T 开头地址不再通过宽松校验，直接返回 False |
+| **tron_client.py** | `get_balance_trx()` 查询新地址不再抛异常，正确返回 0 |
+
 ### 🔴 严重：API 失败时的静默失效 (Silent Failure)
 
 | 项目 | 说明 |
@@ -658,6 +665,64 @@ This service integrates TRONSCAN official security APIs to automatically detect 
 1. **Before Building Transactions**: The `tron_build_tx` tool automatically calls security checks and returns warnings if risks are detected
 2. **Manual Query**: Use `check_account_risk(address)` function to actively query risk status of any address
 3. **API Key Configuration**: It's recommended to configure `TRONSCAN_API_KEY` in `.env` file to get higher API call limits and avoid rate limiting issues
+
+---
+
+## ⚠️ Known Issues & Roadmap
+
+> The following are known issues identified through systematic auditing, sorted by severity. All issues have test coverage (see `test_known_issues.py`).
+
+### ✅ Fixed: Address Validation Vulnerability + TRX Balance Query Exception (v1.0.2)
+
+| Item | Description |
+|------|-------------|
+| **validators.py** | T-prefixed addresses with non-34 characters no longer pass lenient validation, directly return False |
+| **tron_client.py** | `get_balance_trx()` querying new addresses no longer throws exception, correctly returns 0 |
+
+### 🔴 Critical: Silent Failure on API Errors
+
+| Item | Description |
+|------|-------------|
+| **Location** | `tron_client.py` → `check_account_risk()` |
+| **Issue** | When both security APIs (accountv2 + security) **fail simultaneously** (e.g., 429 rate limit, network disconnection), code defaults to `is_risky=False, risk_type="Safe"` via `except Exception` |
+| **Risk** | "Silent failure" is the most dangerous defect in financial security tools. If APIs happen to exceed rate limits during testing, all addresses would show as "safe" |
+| **Improvement Direction** | 1. Set `risk_type` to `"Unknown"` when both APIs fail<br>2. Add fallback warning `"⚠️ Security check service temporarily unavailable, please proceed with caution"`<br>3. Consider not defaulting to allow pass in `check_recipient_security()` when API fails |
+
+### 🟡 Medium: Fee Estimation Missing Free Bandwidth Deduction
+
+| Item | Description |
+|------|-------------|
+| **Location** | `tx_builder.py` → `check_sender_balance()` |
+| **Issue** | USDT fees are fixed at `65000 Energy × 420 SUN = 27.3 TRX` estimation, without integrating TRON's daily 600 free bandwidth per address for dynamic deduction |
+| **Impact** | USDT transfers consume ~350 bytes bandwidth, free bandwidth can save ~0.35 TRX. Users with balance between 26.95~27.30 TRX may be falsely reported as "insufficient balance" |
+| **Improvement Direction** | Query user's remaining free bandwidth, dynamically adjust Gas estimation |
+
+### 🟡 Medium: `force_execution` LLM Prompt Risk
+
+| Item | Description |
+|------|-------------|
+| **Location** | `tx_builder.py` → `build_unsigned_tx()`, `SKILL.md` |
+| **Issue** | When intercepting transactions, returns string prompting LLM "only if user says force", but if prompt is not clear enough, LLM may fall into "sorry I can't transfer" infinite loop, or incorrectly decide to force execution on its own |
+| **Improvement Direction** | Strengthen prompt in SKILL.md: only set `force_execution=True` when user **explicitly says** "I know there are risks, but I want to transfer anyway" |
+
+### 🟢 Low: Transaction Confirmation Workflow Pending Optimization
+
+| Item | Description |
+|------|-------------|
+| **Location** | `tron_client.py` → `get_transaction_status()` |
+| **Current Status** | Feature implemented, can query on-chain confirmation status via `transaction-info?hash={hash}` |
+| **Pending Optimization** | Add "post-transfer query confirmation" recommended workflow in SKILL.md, let AI proactively guide users to use `tron_get_transaction_status` to check arrival status |
+
+### Test Coverage
+
+All above issues have corresponding test cases in `test_known_issues.py`:
+
+```bash
+cd tron-mcp-server
+python -m pytest test_known_issues.py -v
+```
+
+---
 
 <a name="faq-en"></a>
 

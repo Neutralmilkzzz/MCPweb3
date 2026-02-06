@@ -4,7 +4,31 @@
 
 ---
 
-## 2026-02-06 (最新) — 新增交易历史查询功能
+## 2026-02-06 (v1.0.2) — 上线前关键修复 + 工具精简与扩展
+
+### 🔴 关键修复
+
+#### 修复一：地址校验宽松漏洞 (validators.py)
+
+- **问题**: `is_valid_address()` 对非 34 字符的 T 开头地址使用宽松校验（`len >= 20` 即通过），导致非法地址不被拦截，可能造成资金丢失
+- **修复**: 删除宽松分支，Base58 地址严格要求 34 字符，不匹配直接返回 False
+
+#### 修复二：新地址 TRX 余额查询异常 (tron_client.py)
+
+- **问题**: `get_balance_trx()` 中 `_first_not_none()` 缺少兜底值 `0`，查询从未上链的新地址时抛出 `ValueError` 而非返回余额 0
+- **修复**: 添加兜底参数 `0`，与 `get_account_status()` 和 `get_account_tokens()` 保持一致
+
+### 近期合并的 PR 汇总
+
+- **PR #39**: 解决合并冲突，修复中文错误消息断言
+- **PR #37**: 新增 `tron_sign_tx`、`tron_get_internal_transactions`、`tron_get_account_tokens` 三个 MCP 工具
+- **PR #36**: 新增精简版 MCP 工具集测试覆盖
+- **PR #35**: 移除冗余的组合工具，精简 MCP Server 工具列表
+- **PR #34**: 修复未使用的 Optional 导入、模块级 json 导入、货币转换浮点精度问题
+
+---
+
+## 2026-02-06 (交易历史查询) — 新增交易历史查询功能
 
 ### ✅ 新增功能：`tron_get_transaction_history` 工具
 
