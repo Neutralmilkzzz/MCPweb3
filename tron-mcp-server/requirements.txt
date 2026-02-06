@@ -16,6 +16,9 @@ ecdsa>=0.18.0
 # Keccak256 哈希 (用于地址派生)
 pycryptodome>=3.19.0
 
+# TRON SDK (用于密钥生成与交易签名)
+tronpy>=0.4.0
+
 # 环境变量加载
 python-dotenv>=1.0.0
 
