@@ -2,25 +2,26 @@
 测试 server.py MCP 工具层
 ========================
 
-覆盖 server.py 中所有 MCP tool 函数（精简后的 11 个），验证：
+覆盖 server.py 中所有 MCP tool 函数，验证：
 - 每个工具正确调用 call_router.call() 并传入正确的 action 和参数
 - 参数映射正确（如 from_address → from）
 - 通过 mock call_router.call 来验证，不需要真实 API 调用
 
-精简后的 11 个 MCP 工具：
+MCP 工具列表：
 1. tron_get_usdt_balance
 2. tron_get_balance
 3. tron_get_gas_parameters
 4. tron_get_transaction_status
 5. tron_get_network_status
-6. tron_check_account_safety
-7. tron_build_tx
-8. tron_sign_and_broadcast_transaction
+6. tron_build_tx
+7. tron_check_account_safety
+8. tron_sign_tx
 9. tron_broadcast_tx
 10. tron_transfer
 11. tron_get_wallet_info
 12. tron_get_transaction_history
-13. call (兼容模式单入口)
+13. tron_get_internal_transactions
+14. tron_get_account_tokens
 """
 
 import unittest
@@ -236,56 +237,6 @@ class TestTronBuildTx(unittest.TestCase):
         self.assertEqual(args["force_execution"], False)
 
 
-class TestTronSignAndBroadcastTransaction(unittest.TestCase):
-    """测试 tron_sign_and_broadcast_transaction 工具"""
-
-    @patch('tron_mcp_server.call_router.call')
-    def test_calls_router_with_correct_action(self, mock_call):
-        """验证正确调用 call_router.call 并传入 sign_and_broadcast action"""
-        mock_call.return_value = {"result": True, "txid": "a" * 64}
-        
-        tx_json = json.dumps({"txID": "a" * 64, "raw_data": {}})
-        result = server.tron_sign_and_broadcast_transaction(tx_json)
-        
-        mock_call.assert_called_once()
-        args = mock_call.call_args
-        self.assertEqual(args[0][0], "sign_and_broadcast")
-        self.assertIsInstance(args[0][1]["transaction"], dict)
-        self.assertEqual(result["result"], True)
-
-    @patch('tron_mcp_server.call_router.call')
-    def test_json_string_deserialization(self, mock_call):
-        """验证 JSON 字符串正确反序列化为字典"""
-        mock_call.return_value = {}
-        
-        tx_dict = {"txID": "b" * 64, "raw_data": {"test": "data"}}
-        tx_json = json.dumps(tx_dict)
-        
-        server.tron_sign_and_broadcast_transaction(tx_json)
-        
-        args = mock_call.call_args[0][1]
-        self.assertEqual(args["transaction"], tx_dict)
-
-    @patch('tron_mcp_server.call_router.call')
-    def test_dict_input_accepted(self, mock_call):
-        """验证接受字典输入"""
-        mock_call.return_value = {}
-        
-        tx_dict = {"txID": "c" * 64, "raw_data": {}}
-        
-        server.tron_sign_and_broadcast_transaction(tx_dict)
-        
-        args = mock_call.call_args[0][1]
-        self.assertEqual(args["transaction"], tx_dict)
-
-    def test_invalid_json_returns_error(self):
-        """验证无效 JSON 返回错误"""
-        result = server.tron_sign_and_broadcast_transaction("invalid json {")
-        
-        self.assertIn("error", result)
-        self.assertIn("JSON", result["summary"])
-
-
 class TestTronBroadcastTx(unittest.TestCase):
     """测试 tron_broadcast_tx 工具"""
 
@@ -410,41 +361,6 @@ class TestTronGetTransactionHistory(unittest.TestCase):
         self.assertEqual(args["limit"], 10)
         self.assertEqual(args["start"], 0)
         self.assertIsNone(args["token"])
-
-
-class TestCallCompatibilityMode(unittest.TestCase):
-    """测试 call 兼容模式单入口"""
-
-    @patch('tron_mcp_server.call_router.call')
-    def test_calls_router_directly(self, mock_call):
-        """验证直接调用 call_router.call"""
-        mock_call.return_value = {"result": "success"}
-        
-        result = server.call("get_balance", {"address": "TestAddr"})
-        
-        mock_call.assert_called_once_with(
-            "get_balance",
-            {"address": "TestAddr"}
-        )
-        self.assertEqual(result, {"result": "success"})
-
-    @patch('tron_mcp_server.call_router.call')
-    def test_none_params_converted_to_empty_dict(self, mock_call):
-        """验证 None params 转换为空字典"""
-        mock_call.return_value = {}
-        
-        server.call("get_network_status", None)
-        
-        mock_call.assert_called_once_with("get_network_status", {})
-
-    @patch('tron_mcp_server.call_router.call')
-    def test_missing_params_defaults_to_empty_dict(self, mock_call):
-        """验证缺省 params 默认为空字典"""
-        mock_call.return_value = {}
-        
-        server.call("skills")
-        
-        mock_call.assert_called_once_with("skills", {})
 
 
 if __name__ == "__main__":
