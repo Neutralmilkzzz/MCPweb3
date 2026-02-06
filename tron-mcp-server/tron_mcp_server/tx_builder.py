@@ -12,6 +12,9 @@ from . import validators
 # SUN 与 TRX 的转换倍数 (1 TRX = 1,000,000 SUN)
 SUN_PER_TRX = 1_000_000
 
+# USDT TRC20 代币精度 (1 USDT = 10^6 最小单位)
+USDT_DECIMALS = 6
+
 # USDT TRC20 合约地址
 # Default to Mainnet if not set
 USDT_CONTRACT = os.getenv("USDT_CONTRACT_ADDRESS", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
@@ -78,10 +81,12 @@ def _encode_transfer(to: str, amount: int) -> str:
 
 
 def _trigger_smart_contract(to: str, amount: float, from_addr: str, token: str) -> dict:
-    """构建 TRC20 转账交易"""
+    """构建 TRC20 转账交易（预览用，实际签名使用 TronGrid API 构建）"""
     timestamp = _timestamp_ms()
     ref_block_bytes, ref_block_hash = _get_ref_block()
-    amount_raw = int(amount * SUN_PER_TRX)
+    # TRC20 代币使用代币自身的精度，不是 SUN
+    # USDT 精度为 6 位 (1 USDT = 10^6 最小单位)
+    amount_raw = int(amount * (10 ** USDT_DECIMALS))
     
     raw_data = {
         "contract": [
@@ -103,14 +108,16 @@ def _trigger_smart_contract(to: str, amount: float, from_addr: str, token: str) 
         "timestamp": timestamp,
     }
     
+    # 注意: 此 txID 为预览近似值，实际签名使用 TronGrid API 返回的 txID
     tx_id = hashlib.sha256(str(raw_data).encode()).hexdigest()
     return {"txID": tx_id, "raw_data": raw_data}
 
 
 def _build_trx_transfer(from_addr: str, to_addr: str, amount: float) -> dict:
-    """构建 TRX 原生转账交易"""
+    """构建 TRX 原生转账交易（预览用，实际签名使用 TronGrid API 构建）"""
     timestamp = _timestamp_ms()
     ref_block_bytes, ref_block_hash = _get_ref_block()
+    # TRX 转账金额单位必须是 SUN (1 TRX = 1,000,000 SUN)
     amount_sun = int(amount * SUN_PER_TRX)
     
     raw_data = {
@@ -133,6 +140,7 @@ def _build_trx_transfer(from_addr: str, to_addr: str, amount: float) -> dict:
         "timestamp": timestamp,
     }
     
+    # 注意: 此 txID 为预览近似值，实际签名使用 TronGrid API 返回的 txID
     tx_id = hashlib.sha256(str(raw_data).encode()).hexdigest()
     return {"txID": tx_id, "raw_data": raw_data}
 

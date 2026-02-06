@@ -186,6 +186,16 @@ class TestKeyManagerAddressDerivation(unittest.TestCase):
         addr2 = key_manager.get_address_from_private_key(TEST_PRIVATE_KEY)
         self.assertEqual(addr1, addr2)
 
+    def test_address_is_tron_not_ethereum(self):
+        """确认派生出的是 TRON 地址（T 开头），而非以太坊地址（0x 开头）"""
+        addr = key_manager.get_address_from_private_key(TEST_PRIVATE_KEY)
+        self.assertTrue(addr.startswith("T"), f"TRON 地址应以 T 开头，实际为: {addr}")
+        self.assertFalse(addr.startswith("0x"), "不应生成以太坊地址")
+        # 验证 Base58Check 解码后以 0x41 开头（TRON 主网前缀）
+        import base58 as _b58
+        raw = _b58.b58decode_check(addr)
+        self.assertEqual(raw[0], 0x41, "TRON 地址解码后应以 0x41 开头")
+
 
 class TestKeyManagerSigning(unittest.TestCase):
     """测试交易签名"""
@@ -496,6 +506,23 @@ class TestCallRouterBroadcastTx(unittest.TestCase):
         """缺少 signed_tx_json → 错误"""
         result = call_router.call("broadcast_tx", {})
         self.assertIn("error", result)
+
+    @patch('tron_mcp_server.trongrid_client.broadcast_transaction')
+    def test_broadcast_dict_input(self, mock_broadcast):
+        """直接传入字典（非 JSON 字符串）→ 兼容处理"""
+        mock_broadcast.return_value = {"result": True, "txid": "d" * 64}
+
+        signed_tx = {
+            "txID": "d" * 64,
+            "raw_data": {},
+            "signature": ["sig"],
+        }
+        result = call_router.call("broadcast_tx", {
+            "signed_tx_json": signed_tx,
+        })
+
+        self.assertNotIn("error", result)
+        self.assertTrue(result.get("result"))
 
 
 class TestCallRouterTransfer(unittest.TestCase):
