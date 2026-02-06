@@ -539,7 +539,6 @@ def _handle_get_account_resources(params: dict) -> dict:
         return _error_response("rpc_error", str(e))
 
 
-
 # 动作路由表 — 字典映射提升可维护性
 _ACTION_HANDLERS = {
     "skills": _handle_skills,

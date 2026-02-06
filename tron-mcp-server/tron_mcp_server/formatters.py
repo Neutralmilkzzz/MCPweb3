@@ -429,7 +429,8 @@ def format_account_resources(address: str, resources: dict) -> dict:
         f"（已用 {energy_used:,}）"
     )
     summary_parts.append(
-        f"🌐 带宽: 免费 {free_net_remaining}/{free_net_limit}"
+        f"🌐 带宽: 免费 {free_net_used}/{free_net_limit}"
+        f"（剩余 {free_net_remaining}）"
         f"，质押 {net_remaining:,}/{net_limit:,}"
     )
 
