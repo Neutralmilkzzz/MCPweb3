@@ -120,31 +120,7 @@ def tron_build_tx(
     })
 
 
-@mcp.tool()
-def tron_sign_and_broadcast_transaction(transaction: str) -> dict:
-    """
-    签名并广播一笔未签名的 TRON 交易。
-    
-    此工具接收由 tron_build_tx 返回的未签名交易 JSON 字符串，
-    使用本地私钥签名后广播到 TRON 网络。
-    
-    前置条件：
-    - 必须设置环境变量 TRON_PRIVATE_KEY（十六进制私钥）
-    - transaction 参数必须是合法的未签名交易 JSON 字符串
-    
-    Args:
-        transaction: 未签名交易的 JSON 字符串（由 tron_build_tx 返回的 unsigned_tx 字段）
-    
-    Returns:
-        包含广播结果的字典（txid, result, summary）
-    """
-    # 反序列化 JSON 字符串为字典
-    try:
-        tx_dict = json.loads(transaction) if isinstance(transaction, str) else transaction
-    except (json.JSONDecodeError, TypeError):
-        return {"error": True, "summary": "Error: 无效的交易 JSON 格式"}
 
-    return call_router.call("sign_and_broadcast", {"transaction": tx_dict})
 
 
 @mcp.tool()
@@ -171,38 +147,6 @@ def tron_check_account_safety(address: str) -> dict:
 
 
 # ============ 转账闭环工具（签名 / 广播 / 一键转账）============
-
-@mcp.tool()
-def tron_sign_tx(
-    from_address: str,
-    to_address: str,
-    amount: float,
-    token: str = "USDT",
-) -> dict:
-    """
-    构建并签名交易（不广播）。
-    
-    通过 TronGrid API 构建真实交易，使用本地私钥签名。
-    返回已签名交易，可通过 tron_broadcast_tx 广播。
-    
-    前置条件：需设置环境变量 TRON_PRIVATE_KEY。
-    
-    Args:
-        from_address: 发送方地址（必须与本地私钥匹配）
-        to_address: 接收方地址
-        amount: 转账金额（正数）
-        token: 代币类型，USDT 或 TRX，默认 USDT
-    
-    Returns:
-        包含 signed_tx, summary 的结果
-    """
-    return call_router.call("sign_tx", {
-        "from": from_address,
-        "to": to_address,
-        "amount": amount,
-        "token": token,
-    })
-
 
 @mcp.tool()
 def tron_broadcast_tx(signed_tx_json: str) -> dict:
@@ -308,25 +252,6 @@ def tron_get_transaction_history(
         "start": start,
         "token": token,
     })
-
-
-# ============ 兼容模式：单入口（可选）============
-
-@mcp.tool()
-def call(action: str, params: dict = None) -> dict:
-    """
-    TRON 区块链操作单入口（兼容模式）。
-    
-    推荐直接使用 tron_* 系列工具，此接口保留用于兼容。
-
-    Args:
-        action: 动作名称 (get_usdt_balance, get_gas_parameters, 等)
-        params: 动作参数
-
-    Returns:
-        操作结果
-    """
-    return call_router.call(action, params or {})
 
 
 def main():

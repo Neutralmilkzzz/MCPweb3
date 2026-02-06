@@ -48,16 +48,6 @@ SKILLS = [
         },
     },
     {
-        "action": "sign_tx",
-        "desc": "使用本地私钥签名交易（不广播）",
-        "params": {
-            "from": "发送方地址（可选，不填则自动使用私钥地址）",
-            "to": "接收方地址",
-            "amount": "转账数量 (数字)",
-            "token": "TRX 或 USDT",
-        },
-    },
-    {
         "action": "broadcast_tx",
         "desc": "广播已签名交易到 TRON 网络",
         "params": {
@@ -97,7 +87,7 @@ def get_skills() -> dict:
     return {
         "server": "tron-mcp-server",
         "version": "1.0.1",
-        "usage": "通过 call(action='xxx', params={...}) 调用",
+        "usage": "通过 tron_* 系列工具直接调用",
         "skills": SKILLS,
         "summary": f"已加载 TRON 区块链技能列表，包含 {len(SKILLS)} 个可用动作。",
     }
