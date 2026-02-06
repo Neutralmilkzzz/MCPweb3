@@ -12,7 +12,15 @@ ENV/
 # Environment variables
 .env
 
-# Project Management / Hackathon Tasks (Ignored per request)
+# IDE / Editor config
+.roo/
+.vscode/
+.idea/
+*.swp
+
+# Project Management / Internal docs
+Tasks
+Tasks/
 Tasks.md
 PRD.md
 Questions.md
@@ -20,6 +28,7 @@ Questions-Part2.md
 Questions-Answered.md
 Task-Completion-Report.md
 Code-Review-Report.md
+EVALUATION_REPORT.md
 
 # Testing
 .pytest_cache/

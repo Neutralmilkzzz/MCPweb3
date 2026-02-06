@@ -158,9 +158,10 @@ python -m tron_mcp_server.server --sse
 | `tron_get_usdt_balance` | 查询 USDT 余额 | `address` |
 | `tron_get_balance` | 查询 TRX 余额 | `address` |
 | `tron_get_gas_parameters` | 获取 Gas 参数 | 无 |
-| `tron_get_transaction_status` | 查询交易状态 | `txid` |
+| `tron_get_transaction_status` | 查询交易确认状态 | `txid` |
 | `tron_get_network_status` | 获取网络状态 | 无 |
-| `tron_build_tx` | 构建未签名交易 | `from_address`, `to_address`, `amount`, `token` |
+| `tron_build_tx` | 构建未签名交易（含安全审计 + Gas 拦截） | `from_address`, `to_address`, `amount`, `token`, `force_execution` |
+| `tron_check_account_safety` | 检查地址安全性，9 维风控指标 | `address` |
 
 ## 项目结构
 
@@ -316,20 +317,6 @@ A: 可以在 `.env` 中配置 `TRONSCAN_API_KEY` 以提高速率限制，或实�
 ### 报告问题
 
 如果发现 bug 或有功能建议，请在 [Issues](https://github.com/Neutralmilkzzz/MCPweb3/issues) 中提出。
-
----
-
-## 🚧 待完成工作
-
-### 1. Agent Skill 全流程优化（高优先级）
-
-当前 `tron-blockchain-skill/SKILL.md` 仅提供了基础的工具说明，尚需进行全面优化：
-
-- [ ] **多步骤工作流编排**：补充完整的转账全流程示例（余额检查 → Gas 估算 → 交易构建 → 提示签名）
-- [ ] **上下文感知**：优化 Skill 以支持 AI 在多轮对话中保持状态
-- [ ] **错误恢复指导**：为每种错误类型提供详细的恢复策略和用户引导话术
-- [ ] **安全提示增强**：在涉及资产操作时，强化风险提示和确认流程
-- [ ] **示例对话补充**：添加更多真实场景的对话示例，帮助 AI 理解意图
 
 ---
 
@@ -511,9 +498,10 @@ Edit `claude_desktop_config.json`:
 | `tron_get_usdt_balance` | Query USDT balance | `address` |
 | `tron_get_balance` | Query TRX balance | `address` |
 | `tron_get_gas_parameters` | Get Gas parameters | None |
-| `tron_get_transaction_status` | Query transaction status | `txid` |
+| `tron_get_transaction_status` | Query transaction confirmation status | `txid` |
 | `tron_get_network_status` | Get network status | None |
-| `tron_build_tx` | Build unsigned transaction | `from_address`, `to_address`, `amount`, `token` |
+| `tron_build_tx` | Build unsigned transaction (with security audit + gas guard) | `from_address`, `to_address`, `amount`, `token`, `force_execution` |
+| `tron_check_account_safety` | Check address safety with 9-dimension risk scan | `address` |
 
 <a name="project-structure-en"></a>
 
@@ -624,20 +612,6 @@ We welcome all forms of contributions!
 ### Reporting Issues
 
 If you find a bug or have a feature suggestion, please submit it in [Issues](https://github.com/Neutralmilkzzz/MCPweb3/issues).
-
----
-
-## 🚧 TODO
-
-### 1. Agent Skill Complete Workflow Optimization (High Priority)
-
-The current `tron-blockchain-skill/SKILL.md` only provides basic tool descriptions and needs comprehensive optimization:
-
-- [ ] **Multi-step workflow orchestration**: Complete transfer workflow examples (balance check → gas estimation → transaction building → sign prompt)
-- [ ] **Context awareness**: Optimize Skill to support AI state maintenance across multiple conversation rounds
-- [ ] **Error recovery guidance**: Provide detailed recovery strategies and user guidance for each error type
-- [ ] **Enhanced security prompts**: Strengthen risk warnings and confirmation processes for asset operations
-- [ ] **Example dialogue additions**: Add more real-scenario dialogue examples to help AI understand intent
 
 ---
 

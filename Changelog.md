@@ -4,6 +4,47 @@
 
 ---
 
+## 2026-02-06 (晚间) — 关键 Bug 修复：API 认证 + 环境变量加载
+
+### 🔴 紧急修复：安全检查在 MCP 服务器中完全失效
+
+经实际端到端测试发现，尽管下午的代码逻辑修复全部正确，但在通过 MCP 客户端调用时，安全检查始终返回 `Unknown / 无法验证`。排查后发现两个致命的工程配置问题：
+
+#### Bug 1：API Header 名称错误 (tron_client.py)
+
+| 项目 | 修复前 | 修复后 |
+|:---:|:---|:---|
+| Header | `TRONSCAN-API-KEY` | `TRON-PRO-API-KEY` |
+| 结果 | TRONSCAN API 返回 **401 Unauthorized** | API 正常返回 200 |
+
+- **影响**: 所有需要 API Key 的接口（accountv2、security）全部 401 失败
+- **表现**: `check_account_risk()` 两个 API 都进 `except` → `risk_type = "Unknown"` 
+- **验证地址**: `TEd8bfCniiWoZNrDnSCxKYS3aRyQuChy9Q`（应为 Suspicious + Fraud History，修复前返回 Unknown）
+
+#### Bug 2：`.env` 文件未被加载 (server.py)
+
+| 项目 | 修复前 | 修复后 |
+|:---:|:---|:---|
+| `server.py` | 无 `import config` | 增加 `from . import config` |
+| 结果 | `os.getenv("TRONSCAN_API_KEY")` 始终为空 | `.env` 中的 API Key 正确加载 |
+
+- **根因**: `config.py` 中有 `load_dotenv()`，但 `server.py` 从未 import 它，导致 MCP 服务器进程启动时 `.env` 文件未被读取
+- **为何终端测试能通过**: 终端手动测试时会显式调用 `from dotenv import load_dotenv; load_dotenv()`
+
+#### Bug 3：带宽费估算逻辑修正 (tx_builder.py)
+
+- **修复前**: `estimated_fee = energy_fee - free_bw_savings`（错误地从能量费中减去带宽节省）
+- **修复后**: `estimated_fee = energy_fee + actual_bw_fee`（能量费和带宽费分开计算，免费带宽仅覆盖带宽部分）
+- **阈值变化**: 27.3 TRX（纯能量费）+ 0 TRX（带宽被免费额度覆盖）= **27.3 TRX**
+
+#### 其他改进
+
+- `formatters.py`: `risk_type` 为 `Unknown` 或 `Partially Verified` 时，`is_safe` 不再返回 `True`
+- `.gitignore`: 增加 `.roo/`、`EVALUATION_REPORT.md`、`Tasks` 等内部文件的忽略规则
+- 从 git 追踪中移除 `.roo/mcp.json`、`EVALUATION_REPORT.md`、`Tasks`
+
+---
+
 ## 2026-02-06 (下午) — 四大安全缺陷修复
 
 ### 安全关键修复：风险检测、熔断逻辑、手续费估算与工程化 (Critical Security Fixes)
@@ -56,16 +97,20 @@
 #### ✅ 修复三：手续费估算接入免费带宽动态抵扣 — Free Bandwidth Deduction (tx_builder.py)
 
 - **问题本质**: USDT 转账手续费一刀切按 `65000 Energy × 420 SUN = 27.3 TRX` 估算，未考虑 TRON 网络每地址每天 **600 免费带宽点**。对余额在 26.95~27.30 TRX 之间的边界用户，会被误报"余额不足"。
-- **修复方案**: 在 `check_sender_balance()` 中增加免费带宽动态抵扣逻辑:
+- **修复方案**: 在 `check_sender_balance()` 中正确分离能量费与带宽费计算:
   ```python
   FREE_BANDWIDTH_DAILY = 600        # 每地址每天免费带宽
   USDT_BANDWIDTH_BYTES = 350        # USDT Transfer 消耗带宽
   BANDWIDTH_PRICE_SUN = 1000        # 每带宽点 SUN 价格
   
-  free_bw_savings_sun = min(USDT_BANDWIDTH_BYTES, FREE_BANDWIDTH_DAILY) * BANDWIDTH_PRICE_SUN
-  estimated_fee_sun = max(0, energy_fee_sun - free_bw_savings_sun)
+  # 能量费（固定，免费带宽无法抵扣）
+  energy_fee_sun = ESTIMATED_USDT_ENERGY * ENERGY_PRICE_SUN  # 27.3 TRX
+  # 带宽费（免费 600 点覆盖 350 字节消耗 → 0 TRX）
+  free_bw_coverage = min(USDT_BANDWIDTH_BYTES, FREE_BANDWIDTH_DAILY)
+  actual_bw_fee_sun = max(0, (USDT_BANDWIDTH_BYTES - free_bw_coverage) * BANDWIDTH_PRICE_SUN)
+  estimated_fee_sun = energy_fee_sun + actual_bw_fee_sun  # 27.3 TRX
   ```
-- **效果**: 抵扣 350 × 1000 = 350,000 SUN (0.35 TRX)，原来报"余额不足"的边界用户现在可以正常构建交易。所有参数可通过环境变量覆盖（`FREE_BANDWIDTH_DAILY`, `USDT_BANDWIDTH_BYTES`, `BANDWIDTH_PRICE_SUN`）。
+- **效果**: 能量费与带宽费分开计算，免费带宽仅覆盖带宽部分。实际阈值 27.3 TRX，带宽费完全被免费额度覆盖。所有参数可通过环境变量覆盖。
 - **关联代码**: [带宽抵扣逻辑](tron-mcp-server/tron_mcp_server/tx_builder.py#L157-L165), [参数声明](tron-mcp-server/tron_mcp_server/tx_builder.py#L147-L155)
 
 ---
