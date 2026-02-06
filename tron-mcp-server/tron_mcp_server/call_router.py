@@ -523,6 +523,22 @@ def _handle_get_transaction_history(params: dict) -> dict:
         return _error_response("rpc_error", f"查询失败: {e}")
 
 
+def _handle_get_account_resources(params: dict) -> dict:
+    """处理 get_account_resources 动作 — 查询账户资源（Energy/Bandwidth）"""
+    address = params.get("address")
+    if not address:
+        return _error_response("missing_param", "缺少必填参数: address")
+
+    if not validators.is_valid_address(address):
+        return _error_response("invalid_address", f"无效的地址格式: {address}")
+
+    try:
+        resources = trongrid_client.get_account_resources(address)
+        return formatters.format_account_resources(address, resources)
+    except Exception as e:
+        return _error_response("rpc_error", str(e))
+
+
 
 # 动作路由表 — 字典映射提升可维护性
 _ACTION_HANDLERS = {
@@ -539,6 +555,7 @@ _ACTION_HANDLERS = {
     "transfer": _handle_transfer,
     "get_wallet_info": _handle_get_wallet_info,
     "get_transaction_history": _handle_get_transaction_history,
+    "get_account_resources": _handle_get_account_resources,
 }
 
 

@@ -146,6 +146,23 @@ def tron_check_account_safety(address: str) -> dict:
     return call_router.call("check_account_safety", {"address": address})
 
 
+@mcp.tool()
+def tron_get_account_status(address: str) -> dict:
+    """
+    检查账户的激活状态和基本信息。
+
+    用于判断接收方账户是否已激活、是否有 TRX 余额等。
+    向未激活账户转账 TRC20 代币将消耗更多 Energy（约 65000 vs 31000）。
+
+    Args:
+        address: TRON 地址
+
+    Returns:
+        包含 is_activated, has_trx, trx_balance, total_transactions, warnings, summary 的结果
+    """
+    return call_router.call("get_account_status", {"address": address})
+
+
 # ============ 转账闭环工具（签名 / 广播 / 一键转账）============
 
 @mcp.tool()
@@ -252,6 +269,26 @@ def tron_get_transaction_history(
         "start": start,
         "token": token,
     })
+
+
+@mcp.tool()
+def tron_get_account_resources(address: str) -> dict:
+    """
+    查询账户的 Energy（能量）和 Bandwidth（带宽）资源状况。
+
+    TRON 交易消耗 Energy 和 Bandwidth 资源，如果资源充足则无需消耗 TRX。
+    此工具用于评估省钱策略：
+    - Energy: TRC20 转账（如 USDT）消耗，已激活账户约需 31000，未激活约需 65000
+    - Bandwidth: TRX 原生转账消耗，每天有 600 免费额度
+    - 全网权重: 用于计算质押多少 TRX 可获得足够 Energy
+
+    Args:
+        address: TRON 地址
+
+    Returns:
+        包含 energy, bandwidth, tron_power, network (全网权重), summary 的结果
+    """
+    return call_router.call("get_account_resources", {"address": address})
 
 
 def main():
