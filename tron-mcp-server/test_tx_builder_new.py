@@ -103,5 +103,46 @@ class TestTxBuilder(unittest.TestCase):
         self.assertIn("sender_check", result)
         self.assertIn("recipient_check", result)
 
+    @patch('tron_mcp_server.tron_client.get_latest_block_info')
+    @patch('tron_mcp_server.tx_builder.check_sender_balance')
+    @patch('tron_mcp_server.tx_builder.check_recipient_status')
+    def test_usdt_amount_uses_token_decimals(self, mock_recipient, mock_sender, mock_block):
+        """验证 USDT 转账使用代币精度（10^6）而非 SUN 单位"""
+        mock_block.return_value = {"number": 1234567, "hash": "000000000012d687b8f9..."}
+        mock_sender.return_value = {"sufficient": True, "balances": {"trx": 100}}
+        mock_recipient.return_value = {"warnings": [], "warning_message": None}
+        
+        from_addr = "TMuA6YqfCeX8EhbfYEg5y7S4DqzSJireY9"
+        to_addr = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+        
+        from tron_mcp_server.tx_builder import USDT_DECIMALS
+        # 验证 USDT_DECIMALS 常量存在且正确
+        self.assertEqual(USDT_DECIMALS, 6)
+        
+        result = build_unsigned_tx(from_addr, to_addr, 10.0, "USDT")
+        # 验证 data 字段中的金额编码正确
+        # 10 USDT = 10 * 10^6 = 10_000_000 raw units
+        data_hex = result["raw_data"]["contract"][0]["parameter"]["value"]["data"]
+        # data 格式: method_sig(4 bytes = 8 hex) + address(32 bytes = 64 hex) + amount(32 bytes = 64 hex)
+        amount_hex = data_hex[72:]  # 8 + 64 = 72 hex chars offset
+        amount_raw = int(amount_hex, 16)
+        self.assertEqual(amount_raw, 10_000_000)
+
+    @patch('tron_mcp_server.tron_client.get_latest_block_info')
+    @patch('tron_mcp_server.tx_builder.check_sender_balance')
+    def test_trx_amount_uses_sun(self, mock_sender, mock_block):
+        """验证 TRX 转账使用 SUN 单位（1 TRX = 1,000,000 SUN）"""
+        mock_block.return_value = {"number": 1234567, "hash": "000000000012d687b8f9..."}
+        mock_sender.return_value = {"sufficient": True, "balances": {"trx": 100}}
+        
+        from_addr = "TMuA6YqfCeX8EhbfYEg5y7S4DqzSJireY9"
+        to_addr = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+        
+        result = build_unsigned_tx(from_addr, to_addr, 10.0, "TRX", check_recipient=False)
+        # 验证金额已转换为 SUN
+        # 10 TRX = 10 * 1,000,000 = 10,000,000 SUN
+        amount_sun = result["raw_data"]["contract"][0]["parameter"]["value"]["amount"]
+        self.assertEqual(amount_sun, 10_000_000)
+
 if __name__ == '__main__':
     unittest.main()

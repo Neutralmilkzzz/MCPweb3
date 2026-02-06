@@ -371,10 +371,14 @@ def _handle_broadcast_tx(params: dict) -> dict:
     if not signed_tx_json:
         return _error_response("missing_param", "缺少必填参数: signed_tx_json")
 
-    try:
-        signed_tx = json.loads(signed_tx_json)
-    except (json.JSONDecodeError, TypeError) as e:
-        return _error_response("invalid_json", f"无法解析 JSON: {e}")
+    # MCP 工具间传递的是 JSON 字符串，必须先反序列化为字典
+    if isinstance(signed_tx_json, dict):
+        signed_tx = signed_tx_json
+    else:
+        try:
+            signed_tx = json.loads(signed_tx_json)
+        except (json.JSONDecodeError, TypeError) as e:
+            return _error_response("invalid_json", f"无法解析 JSON: {e}")
 
     try:
         result = trongrid_client.broadcast_transaction(signed_tx)
