@@ -49,8 +49,6 @@ def _get(path: str, params: Optional[dict] = None) -> dict:
         return data
     except httpx.TimeoutException as e:
         raise TimeoutError(f"请求超时: {url}") from e
-    except httpx.HTTPStatusError as e:
-        raise ValueError(f"HTTP 错误 {e.response.status_code}: {url}") from e
 
 
 def _to_int(value) -> int:
