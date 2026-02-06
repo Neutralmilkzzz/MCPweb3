@@ -388,3 +388,82 @@ def format_transaction_history(
         "transfers": formatted_transfers,
         "summary": summary,
     }
+
+
+def format_account_resources(address: str, resources: dict) -> dict:
+    """
+    格式化账户资源信息
+
+    将 TronGrid 的 getaccountresource 响应转化为人类可读格式，
+    并计算剩余量和使用百分比。
+    """
+    # 免费带宽
+    free_net_used = resources.get("freeNetUsed", 0)
+    free_net_limit = resources.get("freeNetLimit", 600)  # 默认免费 600
+    free_net_remaining = max(0, free_net_limit - free_net_used)
+
+    # 质押带宽
+    net_used = resources.get("NetUsed", 0)
+    net_limit = resources.get("NetLimit", 0)
+    net_remaining = max(0, net_limit - net_used)
+
+    # 能量
+    energy_used = resources.get("EnergyUsed", 0)
+    energy_limit = resources.get("EnergyLimit", 0)
+    energy_remaining = max(0, energy_limit - energy_used)
+
+    # 全网权重（用于计算质押多少 TRX 可获得多少 Energy）
+    total_energy_limit = resources.get("TotalEnergyLimit", 90_000_000_000)
+    total_energy_weight = resources.get("TotalEnergyWeight", 0)
+    total_net_limit = resources.get("TotalNetLimit", 43_200_000_000)
+    total_net_weight = resources.get("TotalNetWeight", 0)
+
+    # TronPower
+    tron_power_used = resources.get("tronPowerUsed", 0)
+    tron_power_limit = resources.get("tronPowerLimit", 0)
+
+    # 构建摘要
+    summary_parts = [f"地址 {address} 资源概况："]
+    summary_parts.append(
+        f"⚡ Energy: {energy_remaining:,}/{energy_limit:,}"
+        f"（已用 {energy_used:,}）"
+    )
+    summary_parts.append(
+        f"🌐 带宽: 免费 {free_net_used}/{free_net_limit}"
+        f"（剩余 {free_net_remaining}）"
+        f"，质押 {net_remaining:,}/{net_limit:,}"
+    )
+
+    if energy_limit == 0:
+        summary_parts.append(
+            "💡 提示：您没有任何 Energy，TRC20 转账将直接消耗 TRX。"
+            "建议质押 TRX 获取 Energy 以降低交易成本。"
+        )
+
+    return {
+        "address": address,
+        "energy": {
+            "used": energy_used,
+            "limit": energy_limit,
+            "remaining": energy_remaining,
+        },
+        "bandwidth": {
+            "free_used": free_net_used,
+            "free_limit": free_net_limit,
+            "free_remaining": free_net_remaining,
+            "staked_used": net_used,
+            "staked_limit": net_limit,
+            "staked_remaining": net_remaining,
+        },
+        "tron_power": {
+            "used": tron_power_used,
+            "limit": tron_power_limit,
+        },
+        "network": {
+            "total_energy_limit": total_energy_limit,
+            "total_energy_weight": total_energy_weight,
+            "total_net_limit": total_net_limit,
+            "total_net_weight": total_net_weight,
+        },
+        "summary": " ".join(summary_parts),
+    }

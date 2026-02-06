@@ -254,3 +254,35 @@ def broadcast_transaction(signed_tx: dict) -> dict:
         "result": True,
         "txid": signed_tx["txID"],
     }
+
+
+# ============ 资源查询 ============
+
+def get_account_resources(address: str) -> dict:
+    """
+    查询账户的 Energy / Bandwidth / TronPower 资源状况
+
+    调用 TronGrid 端点: POST /wallet/getaccountresource
+
+    Args:
+        address: TRON 地址 (Base58 或 Hex)
+
+    Returns:
+        TronGrid 返回的资源信息字典，包含:
+        - freeNetUsed, freeNetLimit: 免费带宽已用 / 总量
+        - NetUsed, NetLimit: 质押带宽已用 / 总量
+        - EnergyUsed, EnergyLimit: 能量已用 / 总量
+        - TotalNetLimit, TotalNetWeight: 全网带宽总量 / 权重
+        - TotalEnergyLimit, TotalEnergyWeight: 全网能量总量 / 权重
+
+    Raises:
+        ValueError: 地址无效或 API 返回错误
+    """
+    data = {
+        "address": _base58_to_hex(address),
+        "visible": False,
+    }
+    result = _post("wallet/getaccountresource", data)
+    if "Error" in result:
+        raise ValueError(f"TronGrid 查询资源失败: {result.get('Error')}")
+    return result
