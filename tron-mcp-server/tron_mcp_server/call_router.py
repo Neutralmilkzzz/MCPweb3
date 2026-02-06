@@ -5,6 +5,10 @@ from . import tron_client
 from . import tx_builder
 from . import validators
 from . import formatters
+from .key_manager import KeyManager
+
+# 全局 KeyManager 实例
+_key_manager = KeyManager()
 
 
 def _get_skills() -> dict:
@@ -123,6 +127,9 @@ def call(action: str, params: dict = None) -> dict:
 
     elif action == "get_account_status":
         return _handle_get_account_status(params)
+
+    elif action == "sign_and_broadcast":
+        return _handle_sign_and_broadcast(params)
 
     elif action == "check_account_safety":
         return _handle_check_account_safety(params)
@@ -243,6 +250,35 @@ def _handle_check_account_safety(params: dict) -> dict:
         return _check_account_safety(address)
     except Exception as e:
         return _error_response("rpc_error", str(e))
+
+
+def _handle_sign_and_broadcast(params: dict) -> dict:
+    """处理 sign_and_broadcast 动作 - 签名并广播交易"""
+    tx_dict = params.get("transaction")
+    if not tx_dict or not isinstance(tx_dict, dict):
+        return _error_response("invalid_transaction", "缺少有效的 transaction 参数（必须为字典）")
+
+    if "txID" not in tx_dict or "raw_data" not in tx_dict:
+        return _error_response("invalid_transaction", "交易格式无效：缺少 txID 或 raw_data 字段")
+
+    if not _key_manager.is_configured():
+        return _error_response("key_not_configured", "私钥未配置，请设置环境变量 TRON_PRIVATE_KEY")
+
+    try:
+        # 签名
+        signed_tx = _key_manager.sign_transaction(tx_dict)
+        # 广播
+        broadcast_result = tron_client.broadcast_transaction(signed_tx)
+        txid = broadcast_result.get("txid", signed_tx.get("txID", ""))
+        return {
+            "result": True,
+            "txid": txid,
+            "summary": f"✅ 交易已签名并广播成功！交易哈希: {txid}",
+        }
+    except ValueError as e:
+        return _error_response("sign_broadcast_error", str(e))
+    except Exception as e:
+        return _error_response("rpc_error", f"签名/广播失败: {e}")
 
 
 def _handle_build_tx(params: dict) -> dict:
