@@ -563,3 +563,115 @@ def get_trc20_transfer_history(
         params["contract_address"] = contract_address
     
     return _get("token_trc20/transfers", params)
+
+
+def get_internal_transactions(address: str, limit: int = 20, start: int = 0) -> dict:
+    """
+    查询地址的内部交易（合约内部调用产生的转账）
+    调用 TRONSCAN 端点：/api/internal-transaction
+    
+    Args:
+        address: TRON 地址
+        limit: 返回条数，默认 20
+        start: 偏移量，默认 0
+    
+    Returns:
+        API 响应字典（包含 total 和 data 列表）
+    """
+    normalized_addr = _normalize_address(address)
+    params = {
+        "sort": "-timestamp",
+        "limit": limit,
+        "start": start,
+        "address": normalized_addr,
+    }
+    return _get("internal-transaction", params)
+
+
+def get_account_tokens(address: str) -> dict:
+    """
+    查询地址持有的所有代币列表（TRC20 + TRC10 + TRX）
+    复用 /api/account 接口，提取全量代币持仓信息
+    
+    Args:
+        address: TRON 地址
+    
+    Returns:
+        包含 address, token_count, tokens 列表的字典
+    """
+    data = _get_account(address)
+    
+    tokens = []
+    
+    # TRX 余额
+    trx_balance_sun = _to_int(
+        _first_not_none(
+            data.get("balance"),
+            data.get("balanceSun"),
+            data.get("totalBalance"),
+            0,
+        )
+    )
+    tokens.append({
+        "token_name": "TRX",
+        "token_abbr": "TRX",
+        "token_type": "native",
+        "contract_address": "",
+        "balance_raw": trx_balance_sun,
+        "decimals": 6,
+        "balance": trx_balance_sun / 1_000_000,
+    })
+    
+    # TRC20 代币
+    trc20_balances = _first_not_none(
+        data.get("trc20token_balances"),
+        data.get("trc20TokenBalances"),
+        [],
+    )
+    for entry in trc20_balances:
+        contract_addr = (
+            entry.get("tokenId")
+            or entry.get("contractAddress")
+            or entry.get("contract_address")
+            or ""
+        )
+        token_name = entry.get("tokenName") or ""
+        token_abbr = entry.get("tokenAbbr") or token_name
+        balance_raw = _to_int(
+            _first_not_none(entry.get("balance"), entry.get("tokenBalance"), 0)
+        )
+        decimals = int(entry.get("tokenDecimal") or entry.get("decimals") or 6)
+        
+        tokens.append({
+            "token_name": token_name,
+            "token_abbr": token_abbr,
+            "token_type": "trc20",
+            "contract_address": contract_addr,
+            "balance_raw": balance_raw,
+            "decimals": decimals,
+            "balance": balance_raw / (10 ** decimals),
+        })
+    
+    # TRC10 代币 (tokenBalances 中 non-TRX)
+    token_balances = data.get("tokenBalances") or []
+    for entry in token_balances:
+        name = entry.get("tokenName") or entry.get("name") or ""
+        if name in ("_", "TRX", ""):
+            continue  # 已在 TRX 余额中处理
+        decimals_val = int(entry.get("tokenDecimal") or 0)
+        balance_raw = _to_int(entry.get("balance") or 0)
+        tokens.append({
+            "token_name": name,
+            "token_abbr": entry.get("tokenAbbr") or name,
+            "token_type": "trc10",
+            "contract_address": "",
+            "balance_raw": balance_raw,
+            "decimals": decimals_val,
+            "balance": balance_raw / (10 ** decimals_val) if decimals_val > 0 else balance_raw,
+        })
+    
+    return {
+        "address": _normalize_address(address),
+        "token_count": len(tokens),
+        "tokens": tokens,
+    }

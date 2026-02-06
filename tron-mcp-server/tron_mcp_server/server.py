@@ -149,6 +149,28 @@ def tron_check_account_safety(address: str) -> dict:
 # ============ 转账闭环工具（签名 / 广播 / 一键转账）============
 
 @mcp.tool()
+def tron_sign_tx(unsigned_tx_json: str) -> dict:
+    """
+    对未签名交易进行本地签名。不广播。
+    
+    接受 tron_build_tx 返回的 unsigned_tx JSON 字符串，
+    使用本地私钥进行 ECDSA secp256k1 签名。
+    
+    签名在本地完成，私钥永远不会通过网络传输。
+    
+    前置条件：需设置环境变量 TRON_PRIVATE_KEY。
+    
+    Args:
+        unsigned_tx_json: tron_build_tx 返回的未签名交易 JSON 字符串
+    
+    Returns:
+        包含 signed_tx, signed_tx_json, txID, summary 的签名结果。
+        使用 tron_broadcast_tx 广播签名后的交易。
+    """
+    return call_router.call("sign_tx", {"unsigned_tx_json": unsigned_tx_json})
+
+
+@mcp.tool()
 def tron_broadcast_tx(signed_tx_json: str) -> dict:
     """
     广播已签名的交易到 TRON 网络。
@@ -252,6 +274,50 @@ def tron_get_transaction_history(
         "start": start,
         "token": token,
     })
+
+
+@mcp.tool()
+def tron_get_internal_transactions(
+    address: str,
+    limit: int = 20,
+    start: int = 0,
+) -> dict:
+    """
+    查询地址的内部交易（合约内部调用产生的转账）。
+    
+    内部交易是智能合约执行过程中产生的转账，不同于普通的直接转账。
+    常见于 DeFi 操作（如 DEX swap）、合约间调用等场景。
+    
+    Args:
+        address: TRON 地址
+        limit: 返回条数，默认 20，最大 50
+        start: 偏移量（分页），默认 0
+    
+    Returns:
+        包含内部交易列表和统计摘要的结果
+    """
+    return call_router.call("get_internal_transactions", {
+        "address": address,
+        "limit": limit,
+        "start": start,
+    })
+
+
+@mcp.tool()
+def tron_get_account_tokens(address: str) -> dict:
+    """
+    查询地址持有的所有代币列表（TRX + TRC20 + TRC10）。
+    
+    返回完整的代币持仓信息，包括代币名称、缩写、余额等。
+    适用于资产概览、异常代币检测等场景。
+    
+    Args:
+        address: TRON 地址
+    
+    Returns:
+        包含 token_count, tokens 列表和 summary 的结果
+    """
+    return call_router.call("get_account_tokens", {"address": address})
 
 
 def main():

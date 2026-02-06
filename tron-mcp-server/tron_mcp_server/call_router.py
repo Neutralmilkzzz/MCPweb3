@@ -523,6 +523,144 @@ def _handle_get_transaction_history(params: dict) -> dict:
         return _error_response("rpc_error", f"查询失败: {e}")
 
 
+def _handle_sign_tx(params: dict) -> dict:
+    """处理 sign_tx 动作 — 对未签名交易进行本地签名"""
+    unsigned_tx_json = params.get("unsigned_tx_json")
+    
+    # 参数校验
+    if not unsigned_tx_json:
+        return _error_response("missing_param", "缺少必填参数: unsigned_tx_json")
+    
+    # 支持 dict 和 JSON 字符串两种输入
+    if isinstance(unsigned_tx_json, dict):
+        unsigned_tx = unsigned_tx_json
+    else:
+        try:
+            unsigned_tx = json.loads(unsigned_tx_json)
+        except (json.JSONDecodeError, TypeError) as e:
+            return _error_response("invalid_json", f"无法解析 JSON: {e}")
+    
+    # 校验交易必须包含 txID 和 raw_data 字段
+    if "txID" not in unsigned_tx:
+        return _error_response("invalid_tx", "交易缺少 txID 字段")
+    
+    if "raw_data" not in unsigned_tx:
+        return _error_response("invalid_tx", "交易缺少 raw_data 字段")
+    
+    # 加载私钥并签名
+    try:
+        pk = key_manager.load_private_key()
+        tx_id = unsigned_tx["txID"]
+        signature = key_manager.sign_transaction(tx_id, pk)
+        
+        # 构建签名后的交易
+        signed_tx = dict(unsigned_tx)
+        signed_tx["signature"] = [signature]
+        
+        # 使用 formatters.format_signed_tx 格式化返回
+        # 需要提取发送方和接收方地址（如果有的话）
+        from_addr = ""
+        to_addr = ""
+        amount = 0.0
+        token = ""
+        
+        # 尝试从 raw_data 中提取信息（可选）
+        raw_data = unsigned_tx.get("raw_data", {})
+        contracts = raw_data.get("contract", [])
+        if contracts:
+            contract = contracts[0]
+            parameter = contract.get("parameter", {})
+            value = parameter.get("value", {})
+            from_addr = value.get("owner_address", "")
+            to_addr = value.get("to_address", "") or value.get("contract_address", "")
+            amount_raw = value.get("amount", 0)
+            # 尝试推断代币类型
+            if contract.get("type") == "TransferContract":
+                token = "TRX"
+                amount = amount_raw / 1_000_000
+            elif contract.get("type") == "TriggerSmartContract":
+                token = "TRC20"
+                amount = amount_raw / 1_000_000  # 假设 6 位小数
+        
+        return formatters.format_signed_tx(signed_tx, from_addr, to_addr, amount, token)
+        
+    except ValueError as e:
+        return _error_response("sign_error", str(e))
+    except Exception as e:
+        logger.error(f"签名失败: {e}", exc_info=True)
+        return _error_response("sign_error", f"签名过程异常: {e}")
+
+
+def _handle_get_internal_transactions(params: dict) -> dict:
+    """处理 get_internal_transactions 动作 — 查询内部交易"""
+    address = params.get("address")
+    limit = params.get("limit", 20)
+    start = params.get("start", 0)
+    
+    # 参数校验
+    if not address:
+        return _error_response("missing_param", "缺少必填参数: address")
+    
+    if not validators.is_valid_address(address):
+        return _error_response("invalid_address", f"无效的地址格式: {address}")
+    
+    # 转换并校验 limit
+    try:
+        limit = int(limit)
+        if limit < 1 or limit > 50:
+            return _error_response("invalid_param", f"limit 必须在 1-50 范围内，当前值: {limit}")
+    except (ValueError, TypeError):
+        return _error_response("invalid_param", "limit 必须为整数")
+    
+    # 转换并校验 start
+    try:
+        start = int(start)
+        if start < 0:
+            start = 0
+    except (ValueError, TypeError):
+        return _error_response("invalid_param", "start 必须为非负整数")
+    
+    try:
+        # 查询内部交易
+        data = tron_client.get_internal_transactions(address, limit, start)
+        internal_txs = data.get("data", [])
+        total = data.get("total", 0)
+        
+        # 格式化返回
+        return formatters.format_internal_transactions(address, internal_txs, total, limit)
+    
+    except Exception as e:
+        logger.error(f"查询内部交易失败: {e}", exc_info=True)
+        return _error_response("rpc_error", f"查询失败: {e}")
+
+
+def _handle_get_account_tokens(params: dict) -> dict:
+    """处理 get_account_tokens 动作 — 查询账户持有的所有代币"""
+    address = params.get("address")
+    
+    # 参数校验
+    if not address:
+        return _error_response("missing_param", "缺少必填参数: address")
+    
+    if not validators.is_valid_address(address):
+        return _error_response("invalid_address", f"无效的地址格式: {address}")
+    
+    try:
+        # 查询代币列表
+        result = tron_client.get_account_tokens(address)
+        
+        # 格式化返回
+        return formatters.format_account_tokens(
+            result["address"],
+            result["tokens"],
+            result["token_count"]
+        )
+    
+    except Exception as e:
+        logger.error(f"查询账户代币失败: {e}", exc_info=True)
+        return _error_response("rpc_error", f"查询失败: {e}")
+
+
 
 # 动作路由表 — 字典映射提升可维护性
 _ACTION_HANDLERS = {
@@ -535,10 +673,13 @@ _ACTION_HANDLERS = {
     "get_account_status": _handle_get_account_status,
     "check_account_safety": _handle_check_account_safety,
     "build_tx": _handle_build_tx,
+    "sign_tx": _handle_sign_tx,
     "broadcast_tx": _handle_broadcast_tx,
     "transfer": _handle_transfer,
     "get_wallet_info": _handle_get_wallet_info,
     "get_transaction_history": _handle_get_transaction_history,
+    "get_internal_transactions": _handle_get_internal_transactions,
+    "get_account_tokens": _handle_get_account_tokens,
 }
 
 

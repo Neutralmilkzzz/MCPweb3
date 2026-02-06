@@ -388,3 +388,141 @@ def format_transaction_history(
         "transfers": formatted_transfers,
         "summary": summary,
     }
+
+
+def format_internal_transactions(
+    address: str,
+    internal_txs: list,
+    total: int,
+    limit: int = 20,
+) -> dict:
+    """
+    格式化内部交易记录
+    
+    内部交易是智能合约执行过程中产生的转账，不同于普通的直接转账。
+    
+    Args:
+        address: 查询的 TRON 地址
+        internal_txs: 从 API 获取的内部交易记录列表
+        total: 总交易数
+        limit: 请求的返回条数
+    
+    Returns:
+        格式化的内部交易结果
+    """
+    formatted_txs = []
+    
+    for tx in internal_txs:
+        # 提取交易哈希
+        txid = tx.get("hash") or tx.get("transactionHash") or tx.get("transaction_id") or ""
+        
+        # 提取调用方和接收方地址
+        caller_addr = tx.get("callerAddress") or tx.get("caller_address") or tx.get("from") or ""
+        to_addr = tx.get("transferToAddress") or tx.get("to_address") or tx.get("to") or ""
+        
+        # 提取金额（callValueInfo 数组）
+        call_value_info = tx.get("callValueInfo") or []
+        amount = 0
+        token = "TRX"
+        
+        if call_value_info and isinstance(call_value_info, list) and len(call_value_info) > 0:
+            value_info = call_value_info[0]
+            amount_raw = value_info.get("callValue") or 0
+            token_id = (value_info.get("tokenId") or "trx").lower()
+            
+            if token_id == "trx":
+                token = "TRX"
+                amount = int(amount_raw) / 1_000_000
+            else:
+                # TRC10 或其他代币
+                token = token_id
+                amount = int(amount_raw) / 1_000_000  # 假设 6 位小数
+        
+        # 提取时间戳
+        timestamp = tx.get("timestamp") or 0
+        
+        # 是否回退（失败）
+        revert = tx.get("revert", False)
+        
+        # 备注
+        note = tx.get("note") or ""
+        
+        formatted_txs.append({
+            "txid": txid,
+            "caller": caller_addr,
+            "to": to_addr,
+            "amount": amount,
+            "token": token,
+            "timestamp": timestamp,
+            "revert": revert,
+            "note": note,
+        })
+    
+    # 构建摘要
+    summary = (
+        f"地址 {address} 共有 {total} 笔内部交易记录，"
+        f"当前显示最近 {len(formatted_txs)} 笔。"
+    )
+    
+    if len(formatted_txs) > 0:
+        # 统计成功和失败的交易
+        success_count = sum(1 for tx in formatted_txs if not tx["revert"])
+        failed_count = len(formatted_txs) - success_count
+        summary += f" 成功 {success_count} 笔"
+        if failed_count > 0:
+            summary += f"，失败 {failed_count} 笔"
+        summary += "。"
+    
+    return {
+        "address": address,
+        "total": total,
+        "displayed": len(formatted_txs),
+        "internal_transactions": formatted_txs,
+        "summary": summary,
+    }
+
+
+def format_account_tokens(
+    address: str,
+    tokens: list,
+    token_count: int,
+) -> dict:
+    """
+    格式化账户代币列表
+    
+    Args:
+        address: 查询的 TRON 地址
+        tokens: 代币列表（包含 token_name, token_abbr, balance 等字段）
+        token_count: 代币总数
+    
+    Returns:
+        格式化的代币持仓结果
+    """
+    # 构建摘要，列举前几个代币
+    summary_parts = [f"地址 {address} 持有 {token_count} 种代币"]
+    
+    if token_count > 0:
+        # 列举前 5 个代币
+        token_list = []
+        for i, token in enumerate(tokens[:5]):
+            token_abbr = token.get("token_abbr", "")
+            balance = token.get("balance", 0)
+            # 格式化余额，避免科学计数法
+            if balance >= 1:
+                token_list.append(f"{token_abbr} ({balance:,.2f})")
+            else:
+                token_list.append(f"{token_abbr} ({balance:.6f})")
+        
+        if token_count > 5:
+            summary_parts.append(f"：{', '.join(token_list)}...")
+        else:
+            summary_parts.append(f"：{', '.join(token_list)}")
+    
+    summary = "".join(summary_parts) + "。"
+    
+    return {
+        "address": address,
+        "token_count": token_count,
+        "tokens": tokens,
+        "summary": summary,
+    }
