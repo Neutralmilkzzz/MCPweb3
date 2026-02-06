@@ -170,6 +170,112 @@ def tron_check_account_safety(address: str) -> dict:
     return call_router.call("check_account_safety", {"address": address})
 
 
+# ============ 转账闭环工具（签名 / 广播 / 一键转账）============
+
+@mcp.tool()
+def tron_sign_tx(
+    from_address: str,
+    to_address: str,
+    amount: float,
+    token: str = "USDT",
+) -> dict:
+    """
+    构建并签名交易（不广播）。
+    
+    通过 TronGrid API 构建真实交易，使用本地私钥签名。
+    返回已签名交易，可通过 tron_broadcast_tx 广播。
+    
+    前置条件：需设置环境变量 TRON_PRIVATE_KEY。
+    
+    Args:
+        from_address: 发送方地址（必须与本地私钥匹配）
+        to_address: 接收方地址
+        amount: 转账金额（正数）
+        token: 代币类型，USDT 或 TRX，默认 USDT
+    
+    Returns:
+        包含 signed_tx, summary 的结果
+    """
+    return call_router.call("sign_tx", {
+        "from": from_address,
+        "to": to_address,
+        "amount": amount,
+        "token": token,
+    })
+
+
+@mcp.tool()
+def tron_broadcast_tx(signed_tx_json: str) -> dict:
+    """
+    广播已签名的交易到 TRON 网络。
+    
+    接受 tron_sign_tx 返回的 signed_tx JSON 字符串。
+    
+    Args:
+        signed_tx_json: 已签名交易的 JSON 字符串
+    
+    Returns:
+        包含 result, txid, summary 的广播结果
+    """
+    return call_router.call("broadcast_tx", {
+        "signed_tx_json": signed_tx_json,
+    })
+
+
+@mcp.tool()
+def tron_transfer(
+    to_address: str,
+    amount: float,
+    token: str = "USDT",
+    force_execution: bool = False,
+) -> dict:
+    """
+    一键转账闭环：安全检查 → 构建交易 → 签名 → 广播。
+    
+    这是完整的转账工具，自动完成全部流程。
+    发送方地址自动从本地私钥派生。
+    
+    安全机制（与 tron_build_tx 相同）：
+    - Anti-Fraud: 检查接收方是否为恶意地址
+    - Gas Guard: 检查发送方余额是否充足
+    - Recipient Check: 检查接收方账户状态
+    
+    前置条件：需设置环境变量 TRON_PRIVATE_KEY。
+    
+    Args:
+        to_address: 接收方地址
+        amount: 转账金额（正数）
+        token: 代币类型，USDT 或 TRX，默认 USDT
+        force_execution: 强制执行开关。当接收方存在风险时，
+                        只有设置为 True 才能继续转账。
+    
+    Returns:
+        包含 txid, result, summary 的转账结果
+    """
+    return call_router.call("transfer", {
+        "to": to_address,
+        "amount": amount,
+        "token": token,
+        "force_execution": force_execution,
+    })
+
+
+@mcp.tool()
+def tron_get_wallet_info() -> dict:
+    """
+    查看当前配置的钱包信息。
+    
+    返回本地私钥对应的地址及其 TRX / USDT 余额。
+    不会暴露私钥本身。
+    
+    前置条件：需设置环境变量 TRON_PRIVATE_KEY。
+    
+    Returns:
+        包含 address, trx_balance, usdt_balance, summary 的结果
+    """
+    return call_router.call("get_wallet_info", {})
+
+
 # ============ 兼容模式：单入口（可选）============
 
 @mcp.tool()

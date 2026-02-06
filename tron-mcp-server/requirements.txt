@@ -11,7 +11,10 @@ httpx>=0.24.0
 base58>=2.1.0
 
 # TRON 密钥管理与交易签名
-tronpy>=0.6.0
+ecdsa>=0.18.0
+
+# Keccak256 哈希 (用于地址派生)
+pycryptodome>=3.19.0
 
 # 环境变量加载
 python-dotenv>=1.0.0
