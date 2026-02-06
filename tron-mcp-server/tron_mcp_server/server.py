@@ -6,6 +6,8 @@
 - 支持 JSON 和 Markdown 格式输出
 """
 
+import json
+
 from mcp.server.fastmcp import FastMCP
 from . import call_router
 from . import config  # 触发 load_dotenv()，确保 API Key 等环境变量被加载
@@ -116,6 +118,33 @@ def tron_build_tx(
         "token": token,
         "force_execution": force_execution,
     })
+
+
+@mcp.tool()
+def tron_sign_and_broadcast_transaction(transaction: str) -> dict:
+    """
+    签名并广播一笔未签名的 TRON 交易。
+    
+    此工具接收由 tron_build_tx 返回的未签名交易 JSON 字符串，
+    使用本地私钥签名后广播到 TRON 网络。
+    
+    前置条件：
+    - 必须设置环境变量 TRON_PRIVATE_KEY（十六进制私钥）
+    - transaction 参数必须是合法的未签名交易 JSON 字符串
+    
+    Args:
+        transaction: 未签名交易的 JSON 字符串（由 tron_build_tx 返回的 unsigned_tx 字段）
+    
+    Returns:
+        包含广播结果的字典（txid, result, summary）
+    """
+    # 反序列化 JSON 字符串为字典
+    try:
+        tx_dict = json.loads(transaction) if isinstance(transaction, str) else transaction
+    except (json.JSONDecodeError, TypeError):
+        return {"error": True, "summary": "Error: 无效的交易 JSON 格式"}
+
+    return call_router.call("sign_and_broadcast", {"transaction": tx_dict})
 
 
 @mcp.tool()

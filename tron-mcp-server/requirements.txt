@@ -10,6 +10,9 @@ httpx>=0.24.0
 # Base58 编码/解码 (用于 TRON 地址处理)
 base58>=2.1.0
 
+# TRON 密钥管理与交易签名
+tronpy>=0.6.0
+
 # 环境变量加载
 python-dotenv>=1.0.0
 

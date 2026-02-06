@@ -411,6 +411,46 @@ def check_account_risk(address: str) -> dict:
     return report
 
 
+def broadcast_transaction(signed_tx: dict) -> dict:
+    """
+    广播已签名的交易到 TRON 网络
+    
+    Args:
+        signed_tx: 已签名的交易字典，需包含 txID, raw_data, signature 字段
+    
+    Returns:
+        广播结果字典，包含 result (bool) 和 txid
+    
+    Raises:
+        ValueError: 交易格式无效或广播失败
+    """
+    if "signature" not in signed_tx or not signed_tx["signature"]:
+        raise ValueError("交易未签名：缺少 signature 字段")
+
+    url = "https://api.trongrid.io/wallet/broadcasttransaction"
+    headers = _get_headers()
+    headers["Content-Type"] = "application/json"
+
+    response = httpx.post(url, json=signed_tx, headers=headers, timeout=TIMEOUT)
+    response.raise_for_status()
+    data = response.json()
+
+    if not data.get("result", False):
+        error_msg = data.get("message", "Unknown error")
+        # TronGrid returns hex-encoded error messages
+        if isinstance(error_msg, str) and all(c in '0123456789abcdefABCDEF' for c in error_msg):
+            try:
+                error_msg = bytes.fromhex(error_msg).decode("utf-8", errors="replace")
+            except (ValueError, UnicodeDecodeError):
+                pass
+        raise ValueError(f"广播失败: {error_msg}")
+
+    return {
+        "result": True,
+        "txid": data.get("txid", signed_tx.get("txID", "")),
+    }
+
+
 def get_account_status(address: str) -> dict:
     """
     检查账户激活状态
