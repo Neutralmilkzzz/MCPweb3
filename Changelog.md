@@ -4,6 +4,39 @@
 
 ---
 
+## 2026-02-06 (深夜) — 错误消息优化 + 结构统一 + 配置文件补全
+
+### ✅ 改进一：`load_private_key()` 错误消息精简 (key_manager.py)
+
+- **修复前**: 未配置私钥时抛出多行错误消息（含换行符），信息冗长
+- **修复后**: 合并为单行消息，保留所有关键信息（环境变量名、格式要求）
+- **效果**: 日志和 API 响应中的错误消息更易读，不影响排错能力
+
+### ✅ 改进二：`check_sender_balance` 错误对象结构统一 (tx_builder.py)
+
+- **修复前**: USDT 不足使用 `required/available`，Gas 和 TRX 不足仅有 `required_sun/available_sun`，字段不统一
+- **修复后**: 所有错误类型均包含统一的 `required/available`（人类可读单位）和 `required_sun/available_sun`（精确 SUN 单位）字段
+- **效果**: 消费方（LLM、前端）无需按错误类型做特殊处理，统一读取 `required/available` 即可
+
+### ✅ 改进三：`.env.example` 配置文件补全
+
+- 新增 `TRON_PRIVATE_KEY` 配置说明（签名/广播必需）
+- 新增 Gas 费用估算参数：`ESTIMATED_USDT_ENERGY`、`ENERGY_PRICE_SUN`、`MIN_TRX_TRANSFER_FEE`、`FREE_BANDWIDTH_DAILY`、`USDT_BANDWIDTH_BYTES`、`BANDWIDTH_PRICE_SUN`
+- 按功能分组（私钥、API、服务、合约、Gas），提升可读性
+
+### ✅ 改进四：修复 `KeyManager` 类缺失 (key_manager.py)
+
+- `call_router.py` 引用了 `KeyManager` 类但该类不存在，导致所有测试无法运行
+- 新增 `KeyManager` 类封装 `is_configured()` 和 `sign_transaction()` 方法
+
+### ✅ 新增测试文件
+
+- `test_error_messages.py`: 7 个测试用例
+  - `TestKeyManagerErrorMessages`: 错误消息单行化、信息完整性
+  - `TestCheckSenderBalanceErrorStructure`: 所有错误类型字段统一性验证
+
+---
+
 ## 2026-02-06 (晚间) — 关键 Bug 修复：API 认证 + 环境变量加载
 
 ### 🔴 紧急修复：安全检查在 MCP 服务器中完全失效

@@ -93,7 +93,10 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
-# 编辑 .env 文件，按需配置 TRONSCAN API
+# 编辑 .env 文件，按需配置：
+# - TRON_PRIVATE_KEY: 签名/广播交易时必需
+# - TRONSCAN_API_KEY: 提高 API 限额（推荐）
+# - Gas 估算参数: 可根据网络状况微调
 ```
 
 ### 3. 运行 MCP Server
@@ -431,7 +434,10 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
-# Edit .env file to configure TRONSCAN API as needed
+# Edit .env file to configure as needed:
+# - TRON_PRIVATE_KEY: Required for signing/broadcasting transactions
+# - TRONSCAN_API_KEY: Increase API rate limits (recommended)
+# - Gas estimation parameters: Fine-tune based on network conditions
 ```
 
 ### 3. Run MCP Server
