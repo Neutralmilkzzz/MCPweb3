@@ -9,14 +9,12 @@
    - 签名交易 txID 哈希而非以太坊格式
    - 未配置私钥时的错误处理
 
-2. server.py / call_router.py - JSON 解析与类型安全
-   - JSON 字符串正确反序列化为字典
-   - 无效 JSON 格式的错误处理
-   - 签名并广播的完整链路
-
-3. tron_client.py - 广播逻辑
+2. tron_client.py - 广播逻辑
    - broadcast_transaction 发送 POST 请求
    - 广播失败时的错误处理
+
+注意：sign_and_broadcast 路由和 tron_sign_and_broadcast_transaction 工具
+已在工具精简中被删除，相关测试已移除。
 """
 
 import unittest
@@ -176,93 +174,6 @@ class TestBroadcastTransaction(unittest.TestCase):
         with self.assertRaises(ValueError) as cm:
             tron_client.broadcast_transaction(tx)
         self.assertIn("signature", str(cm.exception))
-
-
-class TestSignAndBroadcastRoute(unittest.TestCase):
-    """测试 call_router 的签名广播路由"""
-
-    @patch('tron_mcp_server.call_router._key_manager')
-    @patch('tron_mcp_server.tron_client.broadcast_transaction')
-    def test_sign_and_broadcast_success(self, mock_broadcast, mock_km):
-        """完整签名+广播链路"""
-        from tron_mcp_server import call_router
-        
-        mock_km.is_configured.return_value = True
-        mock_km.sign_transaction.return_value = {
-            "txID": "abc123",
-            "raw_data": {},
-            "signature": ["sig_hex"],
-        }
-        mock_broadcast.return_value = {"result": True, "txid": "abc123"}
-        
-        result = call_router.call("sign_and_broadcast", {
-            "transaction": {
-                "txID": "abc123",
-                "raw_data": {},
-            }
-        })
-        self.assertTrue(result["result"])
-        self.assertEqual(result["txid"], "abc123")
-        self.assertIn("✅", result["summary"])
-
-    @patch('tron_mcp_server.call_router._key_manager')
-    def test_sign_without_key_returns_error(self, mock_km):
-        """未配置私钥时应返回错误"""
-        from tron_mcp_server import call_router
-        
-        mock_km.is_configured.return_value = False
-        
-        result = call_router.call("sign_and_broadcast", {
-            "transaction": {"txID": "abc", "raw_data": {}}
-        })
-        self.assertIn("error", result)
-
-    def test_sign_invalid_transaction_returns_error(self):
-        """无效交易格式应返回错误"""
-        from tron_mcp_server import call_router
-        
-        result = call_router.call("sign_and_broadcast", {
-            "transaction": {"foo": "bar"}
-        })
-        self.assertIn("error", result)
-
-    def test_sign_missing_transaction_returns_error(self):
-        """缺少 transaction 参数应返回错误"""
-        from tron_mcp_server import call_router
-        
-        result = call_router.call("sign_and_broadcast", {})
-        self.assertIn("error", result)
-
-
-class TestServerJsonParsing(unittest.TestCase):
-    """测试 server.py 中 JSON 字符串到字典的转换"""
-
-    def test_json_string_is_parsed(self):
-        """JSON 字符串应被正确解析为字典"""
-        # 模拟 server.py 中的 JSON 解析逻辑
-        tx_json = json.dumps({"txID": "abc123", "raw_data": {}})
-        
-        # 这是 server.py tron_sign_and_broadcast_transaction 中的解析逻辑
-        tx_dict = json.loads(tx_json) if isinstance(tx_json, str) else tx_json
-        
-        self.assertIsInstance(tx_dict, dict)
-        self.assertEqual(tx_dict["txID"], "abc123")
-
-    def test_invalid_json_handled(self):
-        """无效 JSON 应被捕获"""
-        bad_json = "not valid json {"
-        try:
-            json.loads(bad_json)
-            parsed = True
-        except json.JSONDecodeError:
-            parsed = False
-        self.assertFalse(parsed)
-
-    def test_dict_passed_directly(self):
-        """如果已经是字典，应直接使用"""
-        tx_dict = {"txID": "abc123", "raw_data": {}}
-        result = json.loads(json.dumps(tx_dict)) if isinstance(tx_dict, str) else tx_dict
-        self.assertIsInstance(result, dict)
 
 
 if __name__ == '__main__':

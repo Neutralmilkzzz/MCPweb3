@@ -17,11 +17,12 @@
    - 交易广播（成功 / 失败）
 
 3. call_router.py — 转账闭环集成
-   - sign_tx 路由（签名不广播）
    - broadcast_tx 路由（广播已签名交易）
    - transfer 路由（完整闭环）
    - get_wallet_info 路由（钱包信息）
    - 错误场景（无私钥、地址不匹配、余额不足）
+
+注意：sign_tx 路由已在工具精简中被删除，相关测试已移除。
 """
 
 import unittest
@@ -401,78 +402,6 @@ class TestTronGridBroadcast(unittest.TestCase):
 # 3. call_router 集成测试 — 转账闭环
 # ============================================================
 
-class TestCallRouterSignTx(unittest.TestCase):
-    """测试 sign_tx 路由"""
-
-    @patch('tron_mcp_server.trongrid_client.build_trc20_transfer')
-    @patch.dict(os.environ, {"TRON_PRIVATE_KEY": TEST_PRIVATE_KEY})
-    def test_sign_usdt_success(self, mock_build):
-        """签名 USDT 交易 — 成功"""
-        mock_build.return_value = MOCK_TRC20_TX.copy()
-
-        result = call_router.call("sign_tx", {
-            "to": TEST_ADDRESS,
-            "amount": 10.0,
-            "token": "USDT",
-        })
-
-        self.assertNotIn("error", result)
-        self.assertIn("signed_tx", result)
-        self.assertIn("signed_tx_json", result)
-        self.assertIn("txID", result)
-        # 验证签名被附加
-        signed = result["signed_tx"]
-        self.assertIn("signature", signed)
-        self.assertEqual(len(signed["signature"]), 1)
-        self.assertEqual(len(signed["signature"][0]), 130)  # 65 bytes hex
-
-    @patch('tron_mcp_server.trongrid_client.build_trx_transfer')
-    @patch.dict(os.environ, {"TRON_PRIVATE_KEY": TEST_PRIVATE_KEY})
-    def test_sign_trx_success(self, mock_build):
-        """签名 TRX 交易 — 成功"""
-        mock_build.return_value = MOCK_TRX_TX.copy()
-
-        result = call_router.call("sign_tx", {
-            "to": TEST_ADDRESS,
-            "amount": 1.0,
-            "token": "TRX",
-        })
-
-        self.assertNotIn("error", result)
-        self.assertIn("signed_tx", result)
-
-    @patch.dict(os.environ, {"TRON_PRIVATE_KEY": TEST_PRIVATE_KEY})
-    def test_sign_address_mismatch(self):
-        """from 地址与私钥不匹配 → 错误"""
-        result = call_router.call("sign_tx", {
-            "from": "TXnvMwyRQxLfPvGaJ6DFxWu2RoSKiNkNfv",  # 不匹配的地址
-            "to": TEST_ADDRESS,
-            "amount": 10.0,
-        })
-
-        self.assertIn("error", result)
-        self.assertIn("不匹配", result.get("summary", ""))
-
-    @patch.dict(os.environ, {"TRON_PRIVATE_KEY": ""})
-    def test_sign_no_private_key(self):
-        """未配置私钥 → 错误"""
-        result = call_router.call("sign_tx", {
-            "to": TEST_ADDRESS,
-            "amount": 10.0,
-        })
-
-        self.assertIn("error", result)
-        self.assertIn("私钥", result.get("summary", ""))
-
-    def test_sign_missing_params(self):
-        """缺少必填参数 → 错误"""
-        result = call_router.call("sign_tx", {"amount": 10.0})
-        self.assertIn("error", result)
-
-        result = call_router.call("sign_tx", {"to": TEST_ADDRESS})
-        self.assertIn("error", result)
-
-
 class TestCallRouterBroadcastTx(unittest.TestCase):
     """测试 broadcast_tx 路由"""
 
@@ -707,21 +636,6 @@ class TestFormatters(unittest.TestCase):
 class TestSecurityProperties(unittest.TestCase):
     """测试安全性相关属性"""
 
-    @patch('tron_mcp_server.trongrid_client.build_trc20_transfer')
-    @patch.dict(os.environ, {"TRON_PRIVATE_KEY": TEST_PRIVATE_KEY})
-    def test_private_key_not_in_response(self, mock_build):
-        """签名结果不包含私钥"""
-        mock_build.return_value = MOCK_TRC20_TX.copy()
-
-        result = call_router.call("sign_tx", {
-            "to": TEST_ADDRESS,
-            "amount": 10.0,
-        })
-
-        # 将整个结果转为字符串，确认不包含私钥
-        result_str = json.dumps(result)
-        self.assertNotIn(TEST_PRIVATE_KEY, result_str)
-
     @patch('tron_mcp_server.tron_client.get_usdt_balance')
     @patch('tron_mcp_server.tron_client.get_balance_trx')
     @patch.dict(os.environ, {"TRON_PRIVATE_KEY": TEST_PRIVATE_KEY})
@@ -734,20 +648,6 @@ class TestSecurityProperties(unittest.TestCase):
         result_str = json.dumps(result)
         self.assertNotIn(TEST_PRIVATE_KEY, result_str)
         self.assertNotIn("private", result_str.lower())
-
-    @patch('tron_mcp_server.trongrid_client.build_trc20_transfer')
-    @patch.dict(os.environ, {"TRON_PRIVATE_KEY": TEST_PRIVATE_KEY})
-    def test_from_address_auto_derived(self, mock_build):
-        """不指定 from 时，自动从私钥派生"""
-        mock_build.return_value = MOCK_TRC20_TX.copy()
-
-        result = call_router.call("sign_tx", {
-            "to": TEST_ADDRESS,
-            "amount": 10.0,
-        })
-
-        # 签名成功，说明自动使用了私钥地址
-        self.assertIn("signed_tx", result)
 
 
 # ============================================================
