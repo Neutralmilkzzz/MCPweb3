@@ -47,6 +47,38 @@ SKILLS = [
             "token": "TRX 或 USDT",
         },
     },
+    {
+        "action": "sign_tx",
+        "desc": "使用本地私钥签名交易（不广播）",
+        "params": {
+            "from": "发送方地址（可选，不填则自动使用私钥地址）",
+            "to": "接收方地址",
+            "amount": "转账数量 (数字)",
+            "token": "TRX 或 USDT",
+        },
+    },
+    {
+        "action": "broadcast_tx",
+        "desc": "广播已签名交易到 TRON 网络",
+        "params": {
+            "signed_tx_json": "已签名交易的 JSON 字符串",
+        },
+    },
+    {
+        "action": "transfer",
+        "desc": "一键转账闭环：安全检查 → 构建 → 签名 → 广播",
+        "params": {
+            "to": "接收方地址",
+            "amount": "转账数量 (数字)",
+            "token": "TRX 或 USDT",
+            "force_execution": "布尔值，强制执行（接收方有风险时）",
+        },
+    },
+    {
+        "action": "get_wallet_info",
+        "desc": "查看本地钱包地址和余额（不暴露私钥）",
+        "params": {},
+    },
 ]
 
 

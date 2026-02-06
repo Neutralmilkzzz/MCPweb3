@@ -190,3 +190,88 @@ def format_error(error_code: str, message: str) -> dict:
         "error": error_code,
         "summary": f"{message}。请调用 action='skills' 查看可用操作。",
     }
+
+
+def format_signed_tx(
+    signed_tx: dict,
+    from_addr: str,
+    to_addr: str,
+    amount: float,
+    token: str,
+) -> dict:
+    """格式化已签名交易结果"""
+    import json
+    tx_id = signed_tx.get("txID", "")
+    return {
+        "signed_tx": signed_tx,
+        "signed_tx_json": json.dumps(signed_tx),
+        "txID": tx_id,
+        "summary": (
+            f"已签名交易: 从 {from_addr[:8]}... 向 {to_addr[:8]}... "
+            f"转账 {amount} {token}，txID: {tx_id[:16]}...。"
+            f"请使用 tron_broadcast_tx 广播此交易。"
+        ),
+    }
+
+
+def format_broadcast_result(result: dict) -> dict:
+    """格式化广播结果"""
+    tx_id = result.get("txid", "")
+    return {
+        "result": True,
+        "txid": tx_id,
+        "summary": (
+            f"✅ 交易已成功广播到 TRON 网络！txID: {tx_id}。"
+            f"可使用 tron_get_transaction_status 查询确认状态。"
+        ),
+    }
+
+
+def format_transfer_result(
+    broadcast_result: dict,
+    from_addr: str,
+    to_addr: str,
+    amount: float,
+    token: str,
+    security_check: dict = None,
+    recipient_check: dict = None,
+) -> dict:
+    """格式化一键转账结果"""
+    tx_id = broadcast_result.get("txid", "")
+    result = {
+        "result": True,
+        "txid": tx_id,
+        "from": from_addr,
+        "to": to_addr,
+        "amount": amount,
+        "token": token,
+        "summary": (
+            f"✅ 转账成功！从 {from_addr[:8]}... 向 {to_addr[:8]}... "
+            f"转账 {amount} {token}。\n"
+            f"交易 ID: {tx_id}\n"
+            f"可使用 tron_get_transaction_status 查询确认状态。"
+        ),
+    }
+    if security_check:
+        result["security_check"] = security_check
+    if recipient_check:
+        result["recipient_check"] = recipient_check
+    return result
+
+
+def format_wallet_info(
+    address: str,
+    trx_balance: float,
+    usdt_balance: float,
+) -> dict:
+    """格式化钱包信息"""
+    return {
+        "address": address,
+        "trx_balance": trx_balance,
+        "usdt_balance": usdt_balance,
+        "summary": (
+            f"💰 当前钱包地址: {address}\n"
+            f"TRX 余额: {trx_balance:,.6f} TRX\n"
+            f"USDT 余额: {usdt_balance:,.6f} USDT"
+        ),
+    }

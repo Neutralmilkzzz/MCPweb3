@@ -10,6 +10,12 @@ httpx>=0.24.0
 # Base58 编码/解码 (用于 TRON 地址处理)
 base58>=2.1.0
 
+# ECDSA 签名 (secp256k1, 用于交易签名)
+ecdsa>=0.18.0
+
+# Keccak256 哈希 (用于地址派生)
+pycryptodome>=3.19.0
+
 # 环境变量加载
 python-dotenv>=1.0.0
 

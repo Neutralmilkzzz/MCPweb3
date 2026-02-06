@@ -1,8 +1,13 @@
 """调用路由器 - 单入口 call 函数实现"""
 
+import json
+import logging
+
 from . import skills as skills_module
 from . import tron_client
+from . import trongrid_client
 from . import tx_builder
+from . import key_manager
 from . import validators
 from . import formatters
 
@@ -129,6 +134,18 @@ def call(action: str, params: dict = None) -> dict:
 
     elif action == "build_tx":
         return _handle_build_tx(params)
+
+    elif action == "sign_tx":
+        return _handle_sign_tx(params)
+
+    elif action == "broadcast_tx":
+        return _handle_broadcast_tx(params)
+
+    elif action == "transfer":
+        return _handle_transfer(params)
+
+    elif action == "get_wallet_info":
+        return _handle_get_wallet_info()
 
     else:
         return _error_response(
@@ -283,6 +300,198 @@ def _handle_build_tx(params: dict) -> dict:
         return _error_response("build_error", str(e))
     except Exception as e:
         return _error_response("rpc_error", str(e))
+
+
+def _handle_sign_tx(params: dict) -> dict:
+    """处理 sign_tx 动作 — 构建并签名交易（不广播）"""
+    from_addr = params.get("from")
+    to_addr = params.get("to")
+    amount = params.get("amount")
+    token = params.get("token", "USDT")
+
+    if not to_addr:
+        return _error_response("missing_param", "缺少必填参数: to")
+    if amount is None:
+        return _error_response("missing_param", "缺少必填参数: amount")
+    if not validators.is_valid_address(to_addr):
+        return _error_response("invalid_address", f"无效的接收方地址: {to_addr}")
+    if not validators.is_positive_amount(amount):
+        return _error_response("invalid_amount", f"金额必须为正数: {amount}")
+
+    try:
+        # 1. 加载私钥并派生地址
+        pk = key_manager.load_private_key()
+        wallet_address = key_manager.get_address_from_private_key(pk)
+
+        # 如果用户指定了 from，校验是否匹配
+        if from_addr:
+            if not validators.is_valid_address(from_addr):
+                return _error_response("invalid_address", f"无效的发送方地址: {from_addr}")
+            if wallet_address != from_addr:
+                return _error_response(
+                    "address_mismatch",
+                    f"发送方地址 {from_addr} 与本地私钥地址 {wallet_address} 不匹配",
+                )
+        else:
+            from_addr = wallet_address
+
+        # 2. 通过 TronGrid 构建真实交易
+        token_upper = token.upper()
+        if token_upper == "USDT":
+            unsigned_tx = trongrid_client.build_trc20_transfer(
+                from_addr, to_addr, float(amount)
+            )
+        elif token_upper == "TRX":
+            unsigned_tx = trongrid_client.build_trx_transfer(
+                from_addr, to_addr, float(amount)
+            )
+        else:
+            return _error_response("invalid_token", f"不支持的代币类型: {token}")
+
+        # 3. 签名
+        tx_id = unsigned_tx["txID"]
+        signature = key_manager.sign_transaction(tx_id, pk)
+
+        # 4. 组装签名交易
+        signed_tx = dict(unsigned_tx)
+        signed_tx["signature"] = [signature]
+
+        return formatters.format_signed_tx(signed_tx, from_addr, to_addr, float(amount), token_upper)
+
+    except ValueError as e:
+        return _error_response("sign_error", str(e))
+    except Exception as e:
+        logging.error(f"签名失败: {e}", exc_info=True)
+        return _error_response("sign_error", f"签名过程异常: {e}")
+
+
+def _handle_broadcast_tx(params: dict) -> dict:
+    """处理 broadcast_tx 动作 — 广播已签名交易"""
+    signed_tx_json = params.get("signed_tx_json")
+    if not signed_tx_json:
+        return _error_response("missing_param", "缺少必填参数: signed_tx_json")
+
+    try:
+        signed_tx = json.loads(signed_tx_json)
+    except (json.JSONDecodeError, TypeError) as e:
+        return _error_response("invalid_json", f"无法解析 JSON: {e}")
+
+    try:
+        result = trongrid_client.broadcast_transaction(signed_tx)
+        return formatters.format_broadcast_result(result)
+    except ValueError as e:
+        return _error_response("broadcast_error", str(e))
+    except Exception as e:
+        logging.error(f"广播失败: {e}", exc_info=True)
+        return _error_response("broadcast_error", f"广播过程异常: {e}")
+
+
+def _handle_transfer(params: dict) -> dict:
+    """处理 transfer 动作 — 完整转账闭环：安全检查 → 构建 → 签名 → 广播"""
+    to_addr = params.get("to")
+    amount = params.get("amount")
+    token = params.get("token", "USDT")
+    force_execution = params.get("force_execution", False)
+
+    if not to_addr:
+        return _error_response("missing_param", "缺少必填参数: to")
+    if amount is None:
+        return _error_response("missing_param", "缺少必填参数: amount")
+    if not validators.is_valid_address(to_addr):
+        return _error_response("invalid_address", f"无效的接收方地址: {to_addr}")
+    if not validators.is_positive_amount(amount):
+        return _error_response("invalid_amount", f"金额必须为正数: {amount}")
+
+    try:
+        # 1. 加载私钥，派生钱包地址
+        pk = key_manager.load_private_key()
+        from_addr = key_manager.get_address_from_private_key(pk)
+    except ValueError as e:
+        return _error_response("wallet_error", str(e))
+
+    token_upper = token.upper()
+    if token_upper not in ("USDT", "TRX"):
+        return _error_response("invalid_token", f"不支持的代币类型: {token}")
+
+    amount_float = float(amount)
+
+    # 2. 安全检查（复用 tx_builder 的全部检查逻辑）
+    try:
+        preview = tx_builder.build_unsigned_tx(
+            from_addr, to_addr, amount_float, token_upper,
+            force_execution=force_execution,
+        )
+        # 如果被熔断拦截
+        if preview.get("blocked"):
+            return preview
+    except tx_builder.InsufficientBalanceError as e:
+        return {
+            "error": True,
+            "error_type": e.error_code,
+            "message": str(e),
+            "details": e.details,
+            "summary": str(e),
+        }
+    except ValueError as e:
+        return _error_response("validation_error", str(e))
+
+    # 3. 通过 TronGrid 构建真实交易
+    try:
+        if token_upper == "USDT":
+            unsigned_tx = trongrid_client.build_trc20_transfer(
+                from_addr, to_addr, amount_float
+            )
+        else:
+            unsigned_tx = trongrid_client.build_trx_transfer(
+                from_addr, to_addr, amount_float
+            )
+    except Exception as e:
+        return _error_response("build_error", f"TronGrid 构建交易失败: {e}")
+
+    # 4. 签名
+    try:
+        tx_id = unsigned_tx["txID"]
+        signature = key_manager.sign_transaction(tx_id, pk)
+        signed_tx = dict(unsigned_tx)
+        signed_tx["signature"] = [signature]
+    except Exception as e:
+        return _error_response("sign_error", f"签名失败: {e}")
+
+    # 5. 广播
+    try:
+        broadcast_result = trongrid_client.broadcast_transaction(signed_tx)
+    except Exception as e:
+        return _error_response("broadcast_error", f"广播失败: {e}")
+
+    # 6. 返回完整结果
+    return formatters.format_transfer_result(
+        broadcast_result, from_addr, to_addr, amount_float, token_upper,
+        security_check=preview.get("security_check"),
+        recipient_check=preview.get("recipient_check"),
+    )
+
+
+def _handle_get_wallet_info() -> dict:
+    """处理 get_wallet_info 动作 — 查看钱包信息"""
+    try:
+        pk = key_manager.load_private_key()
+        address = key_manager.get_address_from_private_key(pk)
+    except ValueError as e:
+        return _error_response("wallet_error", str(e))
+
+    # 查询余额
+    trx_balance = 0.0
+    usdt_balance = 0.0
+    try:
+        trx_balance = tron_client.get_balance_trx(address)
+    except Exception as e:
+        logging.warning(f"查询钱包 TRX 余额失败: {e}")
+    try:
+        usdt_balance = tron_client.get_usdt_balance(address)
+    except Exception as e:
+        logging.warning(f"查询钱包 USDT 余额失败: {e}")
+
+    return formatters.format_wallet_info(address, trx_balance, usdt_balance)
 
 
 def _error_response(error_type: str, message: str) -> dict:
