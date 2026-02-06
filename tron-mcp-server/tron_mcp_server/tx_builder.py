@@ -258,6 +258,8 @@ def check_sender_balance(
                 "code": "insufficient_trx_for_gas",
                 "message": f"TRX 余额不足以支付 Gas: 预估需要 {estimated_fee_trx:.2f} TRX，当前余额 {trx_balance:.6f} TRX",
                 "severity": "error",
+                "required": estimated_fee_trx,
+                "available": trx_balance,
                 "required_sun": estimated_fee_sun,
                 "available_sun": trx_balance_sun,
             })
@@ -275,10 +277,13 @@ def check_sender_balance(
         total_required_sun = amount_sun + MIN_TRX_TRANSFER_FEE
         
         if trx_balance_sun < total_required_sun:
+            total_required_trx = total_required_sun / SUN_PER_TRX
             errors.append({
                 "code": "insufficient_trx",
                 "message": f"TRX 余额不足: 需要 {amount} TRX + {MIN_TRX_TRANSFER_FEE / SUN_PER_TRX:.2f} TRX (Gas)，当前余额 {trx_balance:.6f} TRX",
                 "severity": "error",
+                "required": total_required_trx,
+                "available": trx_balance,
                 "required_sun": total_required_sun,
                 "available_sun": trx_balance_sun,
             })

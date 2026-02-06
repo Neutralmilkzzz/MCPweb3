@@ -40,8 +40,7 @@ def load_private_key() -> str:
     pk = os.getenv("TRON_PRIVATE_KEY", "").strip()
     if not pk:
         raise ValueError(
-            "未配置私钥。请设置环境变量 TRON_PRIVATE_KEY\n"
-            "格式: 64 位十六进制字符串（不带 0x 前缀）"
+            "未配置私钥，请设置环境变量 TRON_PRIVATE_KEY（64 位十六进制，不带 0x 前缀）"
         )
 
     # 去掉 0x 前缀
@@ -171,3 +170,18 @@ def verify_address_ownership(address: str) -> bool:
     if not configured:
         return False
     return configured == address
+
+
+class KeyManager:
+    """面向对象封装，供 call_router 等模块使用"""
+
+    def is_configured(self) -> bool:
+        return get_configured_address() is not None
+
+    def sign_transaction(self, tx_dict: dict) -> dict:
+        pk = load_private_key()
+        tx_id = tx_dict["txID"]
+        sig = sign_transaction(tx_id, pk)
+        signed = dict(tx_dict)
+        signed["signature"] = [sig]
+        return signed
