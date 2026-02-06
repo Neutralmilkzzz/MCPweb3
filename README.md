@@ -33,7 +33,7 @@
 │   tron-blockchain-skill/            │    │   tron-mcp-server/                  │
 │   (Agent Skill - 知识层)             │    │   (MCP Server - 执行层)              │
 │                                     │    │                                     │
-│   SKILL.md                          │    │   核心工具 (Core Tools):             │
+│   SKILL.md                          │    │   查询工具 (Query Tools):            │
 │   - 教 AI 如何使用工具               │    │   • tron_get_usdt_balance()         │
 │   - 工作流程示例                     │    │   • tron_get_balance()              │
 │   - 错误处理指导                     │    │   • tron_get_gas_parameters()       │
@@ -41,6 +41,12 @@
 └─────────────────────────────────────┘    │   • tron_get_network_status()       │
          AI 读取学习                         │   • tron_build_tx()                 │
                                            │   • tron_check_account_safety()     │
+                                           │                                     │
+                                           │   转账闭环 (Transfer Tools):         │
+                                           │   • tron_sign_tx()                  │
+                                           │   • tron_broadcast_tx()             │
+                                           │   • tron_transfer()                 │
+                                           │   • tron_get_wallet_info()          │
                                            │                                     │
                                            │   安全特性 (Security Features):      │
                                            │   🔒 Anti-Fraud (安全审计)           │
@@ -59,6 +65,10 @@
 - ⛽ **Gas 参数**：获取当前网络 Gas 价格
 - 📊 **交易状态**：查询交易确认状态
 - 🏗️ **交易构建**：构建未签名 USDT/TRX 转账交易
+- ✍️ **交易签名**：本地 ECDSA secp256k1 签名，私钥不离开本机
+- 📡 **交易广播**：将已签名交易广播到 TRON 网络
+- 🔄 **一键转账**：安全检查 → 构建 → 签名 → 广播，全流程自动化
+- 💼 **钱包信息**：查看当前配置的钱包地址及余额
 - 🛡️ **Gas 卫士 (Anti-Revert)**：在构建交易前强制检查发送方余额，预估 Gas 费用，拦截"必死交易"
 - 👤 **接收方状态检测**：自动识别接收方地址是否为未激活状态，提示额外能量消耗
 - ⏰ **交易有效期延长**：交易过期时间延长至 10 分钟，为人工签名提供充足时间窗口
@@ -162,6 +172,10 @@ python -m tron_mcp_server.server --sse
 | `tron_get_network_status` | 获取网络状态 | 无 |
 | `tron_build_tx` | 构建未签名交易（含安全审计 + Gas 拦截） | `from_address`, `to_address`, `amount`, `token`, `force_execution` |
 | `tron_check_account_safety` | 检查地址安全性，9 维风控指标 | `address` |
+| `tron_sign_tx` | 构建并签名交易（不广播），需配置 `TRON_PRIVATE_KEY` | `from_address`, `to_address`, `amount`, `token` |
+| `tron_broadcast_tx` | 广播已签名交易到 TRON 网络 | `signed_tx_json` |
+| `tron_transfer` | 一键转账闭环：安全检查 → 构建 → 签名 → 广播 | `to_address`, `amount`, `token`, `force_execution` |
+| `tron_get_wallet_info` | 查看当前钱包地址及余额 | 无 |
 
 ## 项目结构
 
@@ -172,6 +186,15 @@ python -m tron_mcp_server.server --sse
 │   └── LICENSE.txt
 ├── tron-mcp-server/          # MCP Server（执行层）
 │   ├── tron_mcp_server/      # Python 包
+│   │   ├── server.py         # MCP 工具注册入口
+│   │   ├── call_router.py    # 动作分发路由器
+│   │   ├── tron_client.py    # TRONSCAN API（查询）
+│   │   ├── trongrid_client.py # TronGrid API（交易构建与广播）
+│   │   ├── tx_builder.py     # 未签名交易构建器
+│   │   ├── key_manager.py    # 本地私钥管理与签名
+│   │   ├── formatters.py     # 响应格式化
+│   │   ├── validators.py     # 输入校验
+│   │   └── config.py         # 配置加载
 │   ├── requirements.txt      # 依赖
 │   └── .env.example          # 环境变量示例
 ├── Changelog.md              # 更新日志
@@ -221,23 +244,19 @@ python -m tron_mcp_server.server --sse
 
 > 以下是经过系统审计后识别的已知问题，按严重程度排序。所有问题均已有测试覆盖（见 `test_known_issues.py`）。
 
-### 🔴 严重：API 失败时的静默失效 (Silent Failure)
+### ✅ 已修复：API 失败时的静默失效 (Silent Failure)
 
 | 项目 | 说明 |
 |------|------|
 | **位置** | `tron_client.py` → `check_account_risk()` |
-| **问题** | 当两个安全 API（accountv2 + security）**同时失败**（如 429 频率限制、网络断开），代码通过 `except Exception` 默认返回 `is_risky=False, risk_type="Safe"` |
-| **风险** | 金融安全工具中"静默失效"是最危险的缺陷。评委测试时如果 API 恰好超频，所有地址都会显示"安全" |
-| **改善方向** | 1. 双 API 失败时 `risk_type` 设为 `"Unknown"`<br>2. 添加降级提示 `"⚠️ 安全检查服务暂时不可用，请谨慎操作"`<br>3. `check_recipient_security()` 中 API 失败时考虑不默认放行 |
+| **修复** | 双 API 失败时 `risk_type` 设为 `"Unknown"`，添加降级提示，不再默认放行 |
 
-### 🟡 中等：手续费估算未接入免费带宽抵扣 (Free Bandwidth Gap)
+### ✅ 已修复：手续费估算未接入免费带宽抵扣 (Free Bandwidth Gap)
 
 | 项目 | 说明 |
 |------|------|
 | **位置** | `tx_builder.py` → `check_sender_balance()` |
-| **问题** | USDT 手续费固定按 `65000 Energy × 420 SUN = 27.3 TRX` 估算，未接入 TRON 每地址每天 600 免费带宽的动态抵扣 |
-| **影响** | USDT 转账消耗 ~350 bytes 带宽，免费带宽可节省 ~0.35 TRX。余额在 26.95~27.30 TRX 之间的用户可能被误报"余额不足" |
-| **改善方向** | 查询用户剩余免费带宽，动态调整 Gas 估算 |
+| **修复** | 免费带宽动态抵扣已实现，能量费与带宽费分开计算 |
 
 ### 🟡 中等：`force_execution` 的 LLM 提示词风险
 
@@ -288,7 +307,10 @@ A: 可以直接运行 `python -m tron_mcp_server.server` 查看控制台输出�
 A: 目前支持 TRX（原生代币）和 USDT（TRC20）。未来可扩展支持更多 TRC20 代币。
 
 ### Q6: 交易构建后如何签名和广播？
-A: `build_tx` 工具仅生成未签名交易，需要用户使用私钥管理工具（如 TronLink、硬件钱包）在本地签名，然后通过 TRON 节点广播。
+A: 有两种方式：
+1. **自动方式**：使用 `tron_transfer` 工具，自动完成安全检查 → 构建 → 签名 → 广播全流程。需要设置环境变量 `TRON_PRIVATE_KEY`。
+2. **分步方式**：先用 `tron_sign_tx` 构建并签名交易，确认后使用 `tron_broadcast_tx` 广播。
+3. **外部签名**：使用 `tron_build_tx` 生成未签名交易，通过 TronLink 或硬件钱包在本地签名后广播。
 
 ### Q7: API 速率限制怎么办？
 A: 可以在 `.env` 中配置 `TRONSCAN_API_KEY` 以提高速率限制，或实现请求缓存。
@@ -367,7 +389,7 @@ This project uses an **Agent Skill + MCP Server separation architecture**:
 │   tron-blockchain-skill/            │    │   tron-mcp-server/                  │
 │   (Agent Skill - Knowledge)         │    │   (MCP Server - Execution)          │
 │                                     │    │                                     │
-│   SKILL.md                          │    │   Core Tools:                       │
+│   SKILL.md                          │    │   Query Tools:                       │
 │   - Teach AI how to use tools       │    │   • tron_get_usdt_balance()         │
 │   - Workflow examples               │    │   • tron_get_balance()              │
 │   - Error handling guidance         │    │   • tron_get_gas_parameters()       │
@@ -376,6 +398,12 @@ This project uses an **Agent Skill + MCP Server separation architecture**:
          AI reads and learns                │   • tron_build_tx()                 │
                                            │   • tron_check_account_safety()     │
                                            │                                     │
+                                            │   Transfer Tools:                   │
+                                            │   • tron_sign_tx()                  │
+                                            │   • tron_broadcast_tx()             │
+                                            │   • tron_transfer()                 │
+                                            │   • tron_get_wallet_info()          │
+                                            │                                     │
                                            │   Security Features:                │
                                            │   🔒 Anti-Fraud (Security Audit)    │
                                            │   🛡️ Gas Guard (Anti-Revert)        │
@@ -395,6 +423,10 @@ This project uses an **Agent Skill + MCP Server separation architecture**:
 - ⛽ **Gas Parameters**: Get current network gas prices
 - 📊 **Transaction Status**: Query transaction confirmation status
 - 🏗️ **Transaction Building**: Build unsigned USDT/TRX transfer transactions
+- ✍️ **Transaction Signing**: Local ECDSA secp256k1 signing, private key never leaves the machine
+- 📡 **Transaction Broadcasting**: Broadcast signed transactions to the TRON network
+- 🔄 **One-Click Transfer**: Security check → Build → Sign → Broadcast, fully automated end-to-end flow
+- 💼 **Wallet Info**: View configured wallet address and balances
 - 🛡️ **Gas Guard (Anti-Revert)**: Pre-validates sender balance and estimated gas before building transactions to prevent doomed transactions
 - 👤 **Recipient Status Check**: Automatically detects if recipient address is unactivated, warns about extra energy costs
 - ⏰ **Extended Expiration**: Transaction expiration extended to 10 minutes, providing sufficient time for manual signing
@@ -502,6 +534,10 @@ Edit `claude_desktop_config.json`:
 | `tron_get_network_status` | Get network status | None |
 | `tron_build_tx` | Build unsigned transaction (with security audit + gas guard) | `from_address`, `to_address`, `amount`, `token`, `force_execution` |
 | `tron_check_account_safety` | Check address safety with 9-dimension risk scan | `address` |
+| `tron_sign_tx` | Build and sign transaction (without broadcasting), requires `TRON_PRIVATE_KEY` | `from_address`, `to_address`, `amount`, `token` |
+| `tron_broadcast_tx` | Broadcast signed transaction to TRON network | `signed_tx_json` |
+| `tron_transfer` | One-click transfer: security check → build → sign → broadcast | `to_address`, `amount`, `token`, `force_execution` |
+| `tron_get_wallet_info` | View current wallet address and balances | None |
 
 <a name="project-structure-en"></a>
 
@@ -514,6 +550,15 @@ Edit `claude_desktop_config.json`:
 │   └── LICENSE.txt
 ├── tron-mcp-server/          # MCP Server (Execution layer)
 │   ├── tron_mcp_server/      # Python package
+│   │   ├── server.py         # MCP tool registration entry
+│   │   ├── call_router.py    # Action dispatcher
+│   │   ├── tron_client.py    # TRONSCAN API (queries)
+│   │   ├── trongrid_client.py # TronGrid API (transaction build & broadcast)
+│   │   ├── tx_builder.py     # Unsigned transaction builder
+│   │   ├── key_manager.py    # Local private key management & signing
+│   │   ├── formatters.py     # Response formatting
+│   │   ├── validators.py     # Input validation
+│   │   └── config.py         # Configuration loading
 │   ├── requirements.txt      # Dependencies
 │   └── .env.example          # Environment variables example
 ├── Changelog.md              # Update log
@@ -583,7 +628,10 @@ A: Run `python -m tron_mcp_server.server` directly to see console output, or add
 A: Currently supports TRX (native token) and USDT (TRC20). More TRC20 tokens can be supported in the future.
 
 ### Q6: How to sign and broadcast after building a transaction?
-A: The `build_tx` tool only generates unsigned transactions. Users need to sign with private key management tools (like TronLink, hardware wallets) locally, then broadcast through TRON nodes.
+A: There are three ways:
+1. **Automatic**: Use the `tron_transfer` tool for a fully automated flow: security check → build → sign → broadcast. Requires `TRON_PRIVATE_KEY` environment variable.
+2. **Step-by-step**: Use `tron_sign_tx` to build and sign, then confirm and use `tron_broadcast_tx` to broadcast.
+3. **External signing**: Use `tron_build_tx` to generate an unsigned transaction, then sign with TronLink or hardware wallets locally and broadcast.
 
 ### Q7: What about API rate limits?
 A: Configure `TRONSCAN_API_KEY` in `.env` to increase rate limits, or implement request caching.

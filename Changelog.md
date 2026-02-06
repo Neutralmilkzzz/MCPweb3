@@ -4,6 +4,94 @@
 
 ---
 
+## 2026-02-06 (深夜) — 转账闭环：本地签名 + 广播 + 一键转账
+
+### 🚀 重大特性：从"只读查询"升级为"完整转账闭环"
+
+本次更新补齐了转账的最后一公里 — **本地私钥签名** 与 **链上广播**，使系统从"仅能构建未签名交易"升级为"端到端完整转账工具"。全部操作在本地完成，私钥不离开本机。
+
+---
+
+#### ✅ 新增模块一：本地私钥管理 (key_manager.py)
+
+- **功能**: 本地加载私钥、ECDSA secp256k1 签名、地址派生
+- **安全设计**:
+  - 私钥仅从环境变量 `TRON_PRIVATE_KEY` 加载，不存储在代码或配置文件中
+  - 私钥永远不通过 MCP 工具返回给 AI Agent
+  - 签名操作在本地完成，私钥不离开本机
+- **核心函数**:
+  | 函数 | 说明 |
+  |:---|:---|
+  | `load_private_key()` | 从环境变量加载并校验私钥（64 位 Hex） |
+  | `get_address_from_private_key(pk)` | 私钥 → secp256k1 公钥 → Keccak256 → Base58Check 地址 |
+  | `sign_transaction(tx_id, pk)` | 对交易 ID 进行 ECDSA 签名，输出 r(32) + s(32) + recovery_id(1) = 65 bytes |
+  | `get_configured_address()` | 获取当前配置的私钥对应地址 |
+  | `verify_address_ownership(addr)` | 验证地址是否属于当前私钥 |
+- **签名规范**: 使用 RFC 6979 确定性签名，防止随机数泄露私钥
+
+---
+
+#### ✅ 新增模块二：TronGrid API 客户端 (trongrid_client.py)
+
+- **定位**: 与 `tron_client.py` (TRONSCAN) 分工明确
+  - **TRONSCAN**: 数据查询（余额、交易状态、Gas 参数、安全检查）
+  - **TronGrid**: 交易操作（构建真实交易、广播签名交易）
+- **核心函数**:
+  | 函数 | 说明 |
+  |:---|:---|
+  | `build_trx_transfer(from, to, amount)` | 通过 TronGrid 构建 TRX 原生转账交易 |
+  | `build_trc20_transfer(from, to, amount)` | 通过 TronGrid 构建 TRC20 (USDT) 转账交易 |
+  | `broadcast_transaction(signed_tx)` | 广播已签名交易到 TRON 网络 |
+- **技术细节**:
+  - TronGrid 返回的交易包含 protobuf 序列化的 `raw_data_hex` 和正确的 `txID`，可直接用于签名和广播
+  - TRC20 转账使用 `transfer(address,uint256)` ABI 编码
+  - 广播前校验交易完整性（`txID`、`signature`、`raw_data`）
+  - 支持通过环境变量 `TRONGRID_API_URL` / `TRONGRID_API_KEY` 配置
+
+---
+
+#### ✅ 新增 MCP 工具：4 个转账闭环工具
+
+| 工具名 | 描述 | 关键参数 |
+|:---|:---|:---|
+| `tron_sign_tx` | 构建并签名交易（不广播） | `from_address`, `to_address`, `amount`, `token` |
+| `tron_broadcast_tx` | 广播已签名的交易到 TRON 网络 | `signed_tx_json` |
+| `tron_transfer` | 一键转账闭环：安全检查 → 构建 → 签名 → 广播 | `to_address`, `amount`, `token`, `force_execution` |
+| `tron_get_wallet_info` | 查看当前钱包地址及 TRX/USDT 余额 | 无 |
+
+#### 完整转账流程（tron_transfer）
+
+```
+1. 加载本地私钥 → 派生钱包地址
+2. 安全检查（复用 tx_builder 全部检查逻辑）
+   - Anti-Fraud: 检查接收方是否为恶意地址
+   - Gas Guard: 检查发送方余额是否充足
+   - Recipient Check: 检查接收方账户状态
+3. 通过 TronGrid 构建真实交易
+4. 本地 ECDSA secp256k1 签名
+5. 广播到 TRON 网络
+6. 返回 txID，可通过 tron_get_transaction_status 查询确认
+```
+
+#### 分步流程（tron_sign_tx + tron_broadcast_tx）
+
+```
+1. tron_sign_tx → 构建 + 签名 → 返回 signed_tx_json
+2. 用户确认交易内容
+3. tron_broadcast_tx(signed_tx_json) → 广播上链
+```
+
+---
+
+#### 其他改进
+
+- **formatters.py**: 新增 `format_signed_tx`、`format_broadcast_result`、`format_transfer_result`、`format_wallet_info` 四个格式化函数
+- **call_router.py**: 新增 `sign_tx`、`broadcast_tx`、`transfer`、`get_wallet_info` 四个路由处理器
+- **server.py**: 注册转账闭环工具组，标注"转账闭环工具（签名 / 广播 / 一键转账）"
+- **测试覆盖**: 55 个新增用例全部通过，总计 101 个用例 0 失败
+
+---
+
 ## 2026-02-06 (晚间) — 关键 Bug 修复：API 认证 + 环境变量加载
 
 ### 🔴 紧急修复：安全检查在 MCP 服务器中完全失效
