@@ -320,6 +320,78 @@ def tron_get_account_tokens(address: str) -> dict:
     return call_router.call("get_account_tokens", {"address": address})
 
 
+@mcp.tool()
+def tron_addressbook_add(alias: str, address: str, note: str = "") -> dict:
+    """
+    添加或更新地址簿联系人。将别名与 TRON 地址映射保存到本地。
+
+    使用场景：
+    - "帮我把 TKyPzHiXW4Zms4txUxfWjXBidGzZpiCchn 记成小明"
+    - "保存地址，别名叫老板"
+
+    Args:
+        alias: 联系人别名（如 "小明"、"老板"、"Binance热钱包"）
+        address: TRON 地址（Base58 格式以 T 开头）
+        note: 备注信息（可选，如 "大学同学"、"公司财务"）
+
+    Returns:
+        包含 alias, address, is_update, total_contacts, summary 的结果
+    """
+    return call_router.call("addressbook_add", {
+        "alias": alias,
+        "address": address,
+        "note": note,
+    })
+
+
+@mcp.tool()
+def tron_addressbook_remove(alias: str) -> dict:
+    """
+    从地址簿中删除联系人。
+
+    Args:
+        alias: 要删除的联系人别名
+
+    Returns:
+        包含 alias, found, removed_address, summary 的结果
+    """
+    return call_router.call("addressbook_remove", {"alias": alias})
+
+
+@mcp.tool()
+def tron_addressbook_lookup(alias: str) -> dict:
+    """
+    通过别名查找 TRON 地址。支持模糊搜索。
+
+    使用场景：
+    - "小明的地址是什么"
+    - 在转账前将别名解析为实际地址
+
+    重要：当用户说"给小明转 1 USDT"时，应先调用此工具获取小明的地址，
+    然后再调用 tron_transfer 进行转账。
+
+    Args:
+        alias: 联系人别名
+
+    Returns:
+        包含 alias, found, address, note, summary 的结果。
+        如果未精确匹配，会返回 similar_matches 相似联系人列表。
+    """
+    return call_router.call("addressbook_lookup", {"alias": alias})
+
+
+@mcp.tool()
+def tron_addressbook_list() -> dict:
+    """
+    列出地址簿中所有联系人。
+
+    Returns:
+        包含 total, contacts 列表和 summary 的结果。
+        每个 contact 包含 alias, address, note, created_at。
+    """
+    return call_router.call("addressbook_list", {})
+
+
 def main():
     """启动 MCP Server（支持 stdio 和 SSE 模式）"""
     import sys

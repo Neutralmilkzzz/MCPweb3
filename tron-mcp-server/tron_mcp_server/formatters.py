@@ -573,3 +573,79 @@ def format_account_tokens(
         "tokens": tokens,
         "summary": summary,
     }
+
+
+# ============ 地址簿格式化 ============
+
+def format_addressbook_add(result: dict) -> dict:
+    """格式化地址簿添加结果"""
+    alias = result["alias"]
+    address = result["address"]
+    note = result.get("note", "")
+    is_update = result.get("is_update", False)
+    total = result.get("total_contacts", 0)
+
+    action = "更新" if is_update else "添加"
+    note_text = f"，备注：{note}" if note else ""
+    summary = (
+        f"📒 已{action}联系人「{alias}」→ {address}{note_text}。"
+        f"地址簿当前共 {total} 位联系人。"
+    )
+    return {**result, "summary": summary}
+
+
+def format_addressbook_remove(result: dict) -> dict:
+    """格式化地址簿删除结果"""
+    alias = result["alias"]
+    found = result.get("found", False)
+    total = result.get("total_contacts", 0)
+
+    if found:
+        removed_addr = result.get("removed_address", "")
+        summary = (
+            f"📒 已删除联系人「{alias}」（原地址 {removed_addr}）。"
+            f"地址簿当前共 {total} 位联系人。"
+        )
+    else:
+        summary = f"📒 地址簿中未找到名为「{alias}」的联系人。"
+    return {**result, "summary": summary}
+
+
+def format_addressbook_lookup(result: dict) -> dict:
+    """格式化地址簿查找结果"""
+    alias = result["alias"]
+    found = result.get("found", False)
+
+    if found:
+        address = result["address"]
+        note = result.get("note", "")
+        note_text = f"（备注：{note}）" if note else ""
+        summary = f"📒 「{alias}」的地址是 {address}{note_text}。"
+    else:
+        similar = result.get("similar_matches", [])
+        if similar:
+            match_text = "、".join(
+                f"「{m['alias']}」→ {m['address']}" for m in similar
+            )
+            summary = (
+                f"📒 未找到「{alias}」的精确匹配，但找到相似联系人：{match_text}。"
+            )
+        else:
+            summary = f"📒 地址簿中未找到「{alias}」，请先使用 tron_addressbook_add 添加。"
+    return {**result, "summary": summary}
+
+
+def format_addressbook_list(result: dict) -> dict:
+    """格式化地址簿列表"""
+    total = result.get("total", 0)
+    contacts = result.get("contacts", [])
+
+    if total == 0:
+        summary = "📒 地址簿为空。使用 tron_addressbook_add 添加联系人。"
+    else:
+        lines = [f"📒 地址簿共 {total} 位联系人："]
+        for c in contacts:
+            note_text = f"（{c['note']}）" if c.get("note") else ""
+            lines.append(f"  • {c['alias']} → {c['address']}{note_text}")
+        summary = "\n".join(lines)
+    return {**result, "summary": summary}

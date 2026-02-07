@@ -10,6 +10,7 @@ from . import tx_builder
 from . import key_manager
 from . import validators
 from . import formatters
+from . import address_book
 from .key_manager import KeyManager
 
 logger = logging.getLogger(__name__)
@@ -661,6 +662,60 @@ def _handle_get_account_tokens(params: dict) -> dict:
         return _error_response("rpc_error", f"查询失败: {e}")
 
 
+def _handle_addressbook_add(params: dict) -> dict:
+    """处理 addressbook_add 动作 — 添加联系人"""
+    alias = params.get("alias")
+    address = params.get("address")
+    note = params.get("note", "")
+
+    if not alias:
+        return _error_response("missing_param", "缺少必填参数: alias（联系人别名）")
+    if not address:
+        return _error_response("missing_param", "缺少必填参数: address（TRON 地址）")
+    if not validators.is_valid_address(address):
+        return _error_response("invalid_address", f"无效的地址格式: {address}")
+
+    try:
+        result = address_book.add_contact(alias, address, note)
+        return formatters.format_addressbook_add(result)
+    except Exception as e:
+        return _error_response("addressbook_error", f"添加联系人失败: {e}")
+
+
+def _handle_addressbook_remove(params: dict) -> dict:
+    """处理 addressbook_remove 动作 — 删除联系人"""
+    alias = params.get("alias")
+    if not alias:
+        return _error_response("missing_param", "缺少必填参数: alias（联系人别名）")
+
+    try:
+        result = address_book.remove_contact(alias)
+        return formatters.format_addressbook_remove(result)
+    except Exception as e:
+        return _error_response("addressbook_error", f"删除联系人失败: {e}")
+
+
+def _handle_addressbook_lookup(params: dict) -> dict:
+    """处理 addressbook_lookup 动作 — 查找联系人"""
+    alias = params.get("alias")
+    if not alias:
+        return _error_response("missing_param", "缺少必填参数: alias（联系人别名）")
+
+    try:
+        result = address_book.lookup(alias)
+        return formatters.format_addressbook_lookup(result)
+    except Exception as e:
+        return _error_response("addressbook_error", f"查找联系人失败: {e}")
+
+
+def _handle_addressbook_list(params: dict) -> dict:
+    """处理 addressbook_list 动作 — 列出所有联系人"""
+    try:
+        result = address_book.list_contacts()
+        return formatters.format_addressbook_list(result)
+    except Exception as e:
+        return _error_response("addressbook_error", f"获取地址簿失败: {e}")
+
 
 # 动作路由表 — 字典映射提升可维护性
 _ACTION_HANDLERS = {
@@ -680,6 +735,10 @@ _ACTION_HANDLERS = {
     "get_transaction_history": _handle_get_transaction_history,
     "get_internal_transactions": _handle_get_internal_transactions,
     "get_account_tokens": _handle_get_account_tokens,
+    "addressbook_add": _handle_addressbook_add,
+    "addressbook_remove": _handle_addressbook_remove,
+    "addressbook_lookup": _handle_addressbook_lookup,
+    "addressbook_list": _handle_addressbook_list,
 }
 
 

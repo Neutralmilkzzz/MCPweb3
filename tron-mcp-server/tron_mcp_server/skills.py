@@ -79,6 +79,30 @@ SKILLS = [
             "token": "代币筛选：TRX / USDT / TRC20合约地址 / TRC10名称（可选）",
         },
     },
+    {
+        "action": "addressbook_add",
+        "desc": "添加或更新地址簿联系人（别名↔地址映射）",
+        "params": {
+            "alias": "联系人别名（如 小明）",
+            "address": "TRON 地址",
+            "note": "备注（可选）",
+        },
+    },
+    {
+        "action": "addressbook_remove",
+        "desc": "删除地址簿中的联系人",
+        "params": {"alias": "要删除的联系人别名"},
+    },
+    {
+        "action": "addressbook_lookup",
+        "desc": "通过别名查找 TRON 地址（支持模糊搜索）",
+        "params": {"alias": "联系人别名"},
+    },
+    {
+        "action": "addressbook_list",
+        "desc": "列出地址簿中所有联系人",
+        "params": {},
+    },
 ]
 
 

@@ -217,6 +217,15 @@ docker run --env-file .env -p 8765:8765 tron-mcp-server --sse
 | `tron_broadcast_tx` | 广播已签名交易到 TRON 网络 | `signed_tx_json` |
 | `tron_transfer` | 🚀 一键转账闭环：安全检查 → 构建 → 签名 → 广播 | `to_address`, `amount`, `token`, `force_execution` |
 
+### 地址簿工具
+
+| 工具名 | 描述 | 参数 |
+|--------|------|------|
+| `tron_addressbook_add` | 添加/更新地址簿联系人 | `alias`, `address`, `note` |
+| `tron_addressbook_remove` | 删除联系人 | `alias` |
+| `tron_addressbook_lookup` | 通过别名查找地址（支持模糊搜索） | `alias` |
+| `tron_addressbook_list` | 列出所有联系人 | 无 |
+
 ## 项目结构
 
 ```
@@ -234,6 +243,7 @@ docker run --env-file .env -p 8765:8765 tron-mcp-server --sse
 │   │   ├── trongrid_client.py       # TronGrid API 客户端（交易构建/广播）
 │   │   ├── tx_builder.py            # 交易构建器（含安全检查）
 │   │   ├── key_manager.py           # 本地私钥管理（签名/地址派生）
+│   │   ├── address_book.py          # 地址簿管理（别名↔地址映射）
 │   │   ├── validators.py            # 参数校验
 │   │   ├── formatters.py            # 输出格式化
 │   │   └── config.py                # 配置管理（网络切换/API 预设）
@@ -243,6 +253,7 @@ docker run --env-file .env -p 8765:8765 tron-mcp-server --sse
 │   ├── test_transfer_flow.py        # 转账流程测试
 │   ├── test_tx_builder_new.py       # 交易构建测试
 │   ├── test_transaction_history.py  # 交易历史查询测试
+│   ├── test_address_book.py         # 地址簿模块测试
 │   ├── test_tron_client.py          # TRON 客户端集成测试
 │   ├── test_trongrid_client.py      # TronGrid 客户端集成测试
 │   ├── test_call_router_*.py        # 路由器集成测试
@@ -643,6 +654,15 @@ docker run --env-file .env -p 8765:8765 tron-mcp-server --sse
 | `tron_broadcast_tx` | Broadcast signed transaction to TRON network | `signed_tx_json` |
 | `tron_transfer` | 🚀 One-click transfer: safety check → build → sign → broadcast | `to_address`, `amount`, `token`, `force_execution` |
 
+### Address Book Tools
+
+| Tool Name | Description | Parameters |
+|-----------|-------------|------------|
+| `tron_addressbook_add` | Add/update address book contact | `alias`, `address`, `note` |
+| `tron_addressbook_remove` | Remove contact | `alias` |
+| `tron_addressbook_lookup` | Lookup address by alias (fuzzy search) | `alias` |
+| `tron_addressbook_list` | List all contacts | None |
+
 <a name="project-structure-en"></a>
 
 ## Project Structure
@@ -662,6 +682,7 @@ docker run --env-file .env -p 8765:8765 tron-mcp-server --sse
 │   │   ├── trongrid_client.py       # TronGrid API client (tx build/broadcast)
 │   │   ├── tx_builder.py            # Transaction builder (with safety checks)
 │   │   ├── key_manager.py           # Local private key management (sign/derive)
+│   │   ├── address_book.py          # Address book management (alias↔address mapping)
 │   │   ├── validators.py            # Parameter validation
 │   │   ├── formatters.py            # Output formatting
 │   │   └── config.py                # Configuration management (network switching/API presets)
@@ -671,6 +692,7 @@ docker run --env-file .env -p 8765:8765 tron-mcp-server --sse
 │   ├── test_transfer_flow.py        # Transfer flow tests
 │   ├── test_tx_builder_new.py       # Transaction builder tests
 │   ├── test_transaction_history.py  # Transaction history tests
+│   ├── test_address_book.py         # Address book module tests
 │   ├── test_tron_client.py          # TRON client integration tests
 │   ├── test_trongrid_client.py      # TronGrid client integration tests
 │   ├── test_call_router_*.py        # Call router integration tests
