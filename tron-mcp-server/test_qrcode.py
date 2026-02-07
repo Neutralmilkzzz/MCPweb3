@@ -117,7 +117,7 @@ class TestQRCodeFormatter(unittest.TestCase):
     def test_format_qrcode_result_basic(self):
         """测试基本格式化"""
         input_data = {
-            "file_path": "/tmp/qrcodes/qr_TKyPzHiX...CcCchn.png",
+            "file_path": "/tmp/qrcodes/qr_TKyPzHiX_CcCchn.png",
             "address": "TKyPzHiXW4Zms4txUxfWjXBidGzZpiCchn",
             "file_size": 1234,
         }
@@ -130,9 +130,9 @@ class TestQRCodeFormatter(unittest.TestCase):
         self.assertIn("file_size", result)
         self.assertIn("summary", result)
 
-        # 验证 summary 包含关键信息
-        self.assertIn("TKyPzHiXW4Zms4txUxfWjXBidGzZpiCchn", result["summary"])
-        self.assertIn("/tmp/qrcodes/qr_TKyPzHiX...CcCchn.png", result["summary"])
+        # 验证 summary 包含关键信息（地址被截断显示）
+        self.assertIn("TKyPzHiXW4...zZpiCchn", result["summary"])
+        self.assertIn("/tmp/qrcodes/qr_TKyPzHiX_CcCchn.png", result["summary"])
         self.assertIn("1.2 KB", result["summary"])
 
     def test_format_qrcode_result_small_file(self):

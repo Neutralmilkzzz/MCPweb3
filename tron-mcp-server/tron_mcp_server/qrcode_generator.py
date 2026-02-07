@@ -35,7 +35,7 @@ def generate_address_qrcode(
     # 设置文件名
     if filename is None:
         # 用地址的前8位和后6位作为文件名，避免文件名过长
-        filename = f"qr_{address[:8]}...{address[-6:]}"
+        filename = f"qr_{address[:8]}_{address[-6:]}"
     
     file_path = os.path.join(output_dir, f"{filename}.png")
 

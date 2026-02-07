@@ -665,9 +665,12 @@ def format_qrcode_result(result: dict) -> dict:
     else:
         size_text = f"{file_size} Bytes"
 
+    # 截断地址以提高可读性
+    address_display = f"{address[:10]}...{address[-8:]}"
+
     summary = (
         f"📱 已成功生成钱包地址二维码！\n"
-        f"地址: {address}\n"
+        f"地址: {address_display}\n"
         f"文件: {file_path}\n"
         f"大小: {size_text}\n"
         f"其他人可以扫描此二维码获取你的钱包地址。"
