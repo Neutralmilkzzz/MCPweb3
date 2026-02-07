@@ -5,6 +5,7 @@
 [![MCP](https://img.shields.io/badge/MCP-1.0.0-green.svg)](https://modelcontextprotocol.io/)
 
 为 AI Agent 提供 TRON 区块链操作能力的 MCP Server，遵循 MCP 最佳实践。
+<img width="2752" height="1536" alt="unnamed (2)" src="https://github.com/user-attachments/assets/00b5164c-4122-45d1-844b-f348f129da08" />
 
 [English](#english-version) | [中文](#中文版本)
 
