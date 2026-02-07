@@ -45,17 +45,59 @@ def format_gas_parameters(gas_price_sun: int, energy_price_sun: int = None) -> d
 
 
 def format_tx_status(
-    txid: str, success: bool, block_number: int, confirmations: int = 0
+    txid: str, tx_info: dict, confirmations: int = 0
 ) -> dict:
-    """格式化交易状态"""
+    """格式化交易状态（含货币类型、金额、发送方、接收方等详细信息）"""
+    success = tx_info.get("success", False)
+    block_number = tx_info.get("block_number", 0)
+    token_type = tx_info.get("token_type", "未知")
+    amount = tx_info.get("amount", 0)
+    from_address = tx_info.get("from_address", "")
+    to_address = tx_info.get("to_address", "")
+    timestamp = tx_info.get("timestamp", 0)
+    fee_sun = tx_info.get("fee", 0)
+    fee_trx = fee_sun / 1_000_000 if fee_sun else 0
+
     status = "成功" if success else "失败"
+
+    # 格式化时间
+    time_str = ""
+    if timestamp:
+        import datetime
+        dt = datetime.datetime.fromtimestamp(timestamp / 1000)
+        time_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    # 构建摘要
+    summary_parts = [
+        f"交易 {txid[:16]}... 状态：{status}",
+        f"类型：{token_type} 转账",
+        f"金额：{amount:g} {token_type}",
+    ]
+    if from_address:
+        summary_parts.append(f"发送方：{from_address}")
+    if to_address:
+        summary_parts.append(f"接收方：{to_address}")
+    summary_parts.append(f"所在区块：{block_number:,}")
+    if fee_trx:
+        summary_parts.append(f"手续费：{fee_trx:g} TRX")
+    if time_str:
+        summary_parts.append(f"时间：{time_str}")
+
     return {
         "txid": txid,
         "status": status,
         "success": success,
         "block_number": block_number,
         "confirmations": confirmations,
-        "summary": f"交易 {txid[:16]}... 状态：{status}，所在区块 {block_number:,}，已确认 {confirmations} 次。",
+        "token_type": token_type,
+        "amount": amount,
+        "from_address": from_address,
+        "to_address": to_address,
+        "fee_sun": fee_sun,
+        "fee_trx": fee_trx,
+        "timestamp": timestamp,
+        "time": time_str,
+        "summary": "\n".join(summary_parts),
     }
 
 

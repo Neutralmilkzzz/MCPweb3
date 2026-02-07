@@ -179,10 +179,17 @@ def get_gas_parameters() -> int:
     return _to_int(value)
 
 
-def get_transaction_status(txid: str) -> tuple:
+def get_transaction_status(txid: str) -> dict:
     """
-    查询交易状态
-    返回 (success: bool, block_number: int)
+    查询交易状态，返回详细信息字典：
+    - success: 是否成功
+    - block_number: 所在区块
+    - token_type: 货币类型 (TRX / USDT / 其他 TRC20)
+    - amount: 转账金额（已换算为可读单位）
+    - from_address: 发送方地址
+    - to_address: 接收方地址
+    - timestamp: 交易时间戳 (毫秒)
+    - fee: 手续费 (SUN)
     """
     data = _get("transaction-info", {"hash": _normalize_txid(txid)})
     if not data:
@@ -198,7 +205,59 @@ def get_transaction_status(txid: str) -> tuple:
         or 0
     )
 
-    return success, block_number
+    # 提取转账金额、货币类型、发送方、接收方
+    token_type = "TRX"
+    amount = 0.0
+    from_address = data.get("ownerAddress") or data.get("owner_address") or ""
+    to_address = data.get("toAddress") or data.get("to_address") or ""
+
+    # 检查是否为 TRC20 转账 (trigger_info / tokenTransferInfo)
+    trigger_info = data.get("trigger_info") or data.get("triggerInfo") or {}
+    token_transfer = data.get("tokenTransferInfo") or data.get("token_transfer_info") or {}
+    contract_type = data.get("contractType") or data.get("contract_type") or 0
+
+    if token_transfer:
+        # TRC20 转账
+        symbol = token_transfer.get("symbol") or token_transfer.get("tokenName") or "TRC20"
+        decimals = _to_int(token_transfer.get("decimals") or 6)
+        raw_amount = _to_int(token_transfer.get("amount_str") or token_transfer.get("amount") or 0)
+        amount = raw_amount / (10 ** decimals)
+        token_type = symbol
+        to_address = token_transfer.get("to_address") or token_transfer.get("toAddress") or to_address
+        from_address = token_transfer.get("from_address") or token_transfer.get("fromAddress") or from_address
+    elif trigger_info and trigger_info.get("method"):
+        # 其他合约调用
+        method = trigger_info.get("method", "")
+        if "transfer" in method.lower():
+            # 尝试从 trigger_info 提取
+            param_value = trigger_info.get("parameter", {}).get("_value") or trigger_info.get("call_value") or 0
+            token_type = trigger_info.get("tokenName") or "TRC20"
+            decimals = _to_int(trigger_info.get("decimals") or 6)
+            amount = _to_int(param_value) / (10 ** decimals)
+        else:
+            token_type = "合约调用"
+    else:
+        # TRX 原生转账
+        raw_amount = _to_int(
+            data.get("amount") or data.get("contractData", {}).get("amount") or 0
+        )
+        amount = raw_amount / 1_000_000
+        token_type = "TRX"
+
+    # 时间戳和手续费
+    timestamp = _to_int(data.get("timestamp") or data.get("block_timestamp") or 0)
+    fee = _to_int(data.get("cost", {}).get("fee") or data.get("fee") or 0)
+
+    return {
+        "success": success,
+        "block_number": block_number,
+        "token_type": token_type,
+        "amount": amount,
+        "from_address": from_address,
+        "to_address": to_address,
+        "timestamp": timestamp,
+        "fee": fee,
+    }
 
 
 def get_network_status() -> int:

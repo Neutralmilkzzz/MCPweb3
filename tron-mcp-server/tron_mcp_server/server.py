@@ -60,13 +60,13 @@ def tron_get_gas_parameters() -> dict:
 @mcp.tool()
 def tron_get_transaction_status(txid: str) -> dict:
     """
-    查询交易的确认状态。
+    查询交易的详细状态信息。
     
     Args:
         txid: 交易哈希，64 位十六进制字符串
     
     Returns:
-        包含 status, success, block_number, summary 的结果
+        包含 status, success, block_number, token_type, amount, from_address, to_address, fee_trx, time, summary 的结果
     """
     return call_router.call("get_transaction_status", {"txid": txid})
 

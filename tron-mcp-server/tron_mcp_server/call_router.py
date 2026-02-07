@@ -45,8 +45,8 @@ def _get_balance(addr: str) -> dict:
 
 def _get_transaction_status(txid: str) -> dict:
     """获取交易状态（可被测试 mock）"""
-    success, block_number = tron_client.get_transaction_status(txid)
-    return formatters.format_tx_status(txid, success, block_number)
+    tx_info = tron_client.get_transaction_status(txid)
+    return formatters.format_tx_status(txid, tx_info)
 
 
 def _get_network_status() -> dict:
