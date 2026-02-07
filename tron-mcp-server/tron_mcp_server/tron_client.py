@@ -6,23 +6,21 @@ from typing import Optional
 import httpx
 import base58
 
+from . import config
+
 logger = logging.getLogger(__name__)
 
-# USDT TRC20 合约地址
-# Default to Mainnet if not set
-USDT_CONTRACT_BASE58 = os.getenv("USDT_CONTRACT_ADDRESS", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
-USDT_CONTRACT_HEX = os.getenv("USDT_CONTRACT_ADDRESS_HEX", "0x41a614f803b6fd780986a42c78ec9c7f77e6ded13c")
-
-# 默认 TRONSCAN API URL
-DEFAULT_API_URL = "https://apilist.tronscan.org/api"
+# USDT TRC20 合约地址 — 根据 TRON_NETWORK 自动切换
+USDT_CONTRACT_BASE58 = config.get_usdt_contract()
+USDT_CONTRACT_HEX = config.get_usdt_contract_hex()
 
 # 超时设置
-TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "10.0"))
+TIMEOUT = config.get_timeout()
 
 
 def _get_api_url() -> str:
     """获取 TRONSCAN API URL"""
-    base_url = os.getenv("TRONSCAN_API_URL", "") or DEFAULT_API_URL
+    base_url = config.get_api_url()
     base_url = base_url.rstrip("/")
     if not base_url:
         raise ValueError("未配置 TRONSCAN_API_URL")
@@ -32,7 +30,7 @@ def _get_api_url() -> str:
 def _get_headers() -> dict:
     """获取请求头"""
     headers = {"Accept": "application/json"}
-    api_key = os.getenv("TRONSCAN_API_KEY", "")
+    api_key = config.get_api_key()
     if api_key:
         # TRONSCAN API 要求使用 TRON-PRO-API-KEY 作为 header 名称
         headers["TRON-PRO-API-KEY"] = api_key

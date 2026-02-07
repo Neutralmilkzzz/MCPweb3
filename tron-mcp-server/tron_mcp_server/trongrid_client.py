@@ -16,18 +16,17 @@ from typing import Optional
 import httpx
 import base58
 
+from . import config
+
 logger = logging.getLogger(__name__)
 
 
 # ============ 配置 ============
 
-DEFAULT_TRONGRID_URL = "https://api.trongrid.io"
 TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "15.0"))
 
-# USDT TRC20 合约地址
-USDT_CONTRACT_BASE58 = os.getenv(
-    "USDT_CONTRACT_ADDRESS", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
-)
+# USDT TRC20 合约地址 — 根据 TRON_NETWORK 自动切换
+USDT_CONTRACT_BASE58 = config.get_usdt_contract()
 
 # TRC20 转账的 fee_limit (SUN), 默认 100 TRX
 DEFAULT_FEE_LIMIT = int(os.getenv("TRONGRID_FEE_LIMIT", "100000000"))
@@ -38,14 +37,13 @@ SUN_PER_TRX = 1_000_000
 
 def _get_trongrid_url() -> str:
     """获取 TronGrid API URL"""
-    url = os.getenv("TRONGRID_API_URL", "") or DEFAULT_TRONGRID_URL
-    return url.rstrip("/")
+    return config.get_trongrid_url()
 
 
 def _get_headers() -> dict:
     """获取请求头, 支持 TronGrid API Key"""
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
-    api_key = os.getenv("TRONGRID_API_KEY", "") or os.getenv("TRONSCAN_API_KEY", "")
+    api_key = config.get_trongrid_api_key()
     if api_key:
         headers["TRON-PRO-API-KEY"] = api_key
     return headers

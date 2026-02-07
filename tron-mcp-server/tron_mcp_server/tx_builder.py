@@ -17,9 +17,9 @@ SUN_PER_TRX = 1_000_000
 # USDT TRC20 代币精度 (1 USDT = 10^6 最小单位)
 USDT_DECIMALS = 6
 
-# USDT TRC20 合约地址
-# Default to Mainnet if not set
-USDT_CONTRACT = os.getenv("USDT_CONTRACT_ADDRESS", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+# USDT TRC20 合约地址 — 根据 TRON_NETWORK 自动切换
+from . import config as _config
+USDT_CONTRACT = _config.get_usdt_contract()
 
 # 交易过期时间（毫秒）
 TX_EXPIRATION_MS = 10 * 60 * 1000
