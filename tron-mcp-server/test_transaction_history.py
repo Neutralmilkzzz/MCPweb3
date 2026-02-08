@@ -1,8 +1,12 @@
 """测试交易历史查询功能"""
 
+import base58
 import pytest
 from unittest.mock import patch, MagicMock
 from tron_mcp_server import call_router, tron_client, formatters
+
+BASE58_ADDRESS = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"
+HEX_ADDRESS = f"0x{base58.b58decode_check(BASE58_ADDRESS).hex()}"
 
 
 class TestGetTransactionHistory:
@@ -214,7 +218,7 @@ class TestFormatTransactionHistory:
 
     def test_direction_detection(self):
         """测试方向检测逻辑"""
-        address = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"
+        address = BASE58_ADDRESS
         
         # 测试 OUT 方向
         transfers_out = [{
@@ -250,6 +254,40 @@ class TestFormatTransactionHistory:
             "timestamp": 1640000000000
         }]
         result = formatters.format_transaction_history(address, transfers_self, 1)
+        assert result["transfers"][0]["direction"] == "SELF"
+
+    def test_direction_detection_with_hex_address(self):
+        """测试 hex 地址的方向检测"""
+        base58_address = BASE58_ADDRESS
+        hex_address = HEX_ADDRESS
+        assert tron_client._normalize_address(hex_address) == base58_address
+        transfers_self = [{
+            "transactionHash": "tx_hex",
+            "transferFromAddress": base58_address,
+            "transferToAddress": base58_address,
+            "amount": 1000000,
+            "tokenName": "_",
+            "timestamp": 1640000000000
+        }]
+        result = formatters.format_transaction_history(hex_address, transfers_self, 1)
+        assert result["address"] == base58_address
+        assert result["transfers"][0]["direction"] == "SELF"
+
+    def test_direction_detection_with_hex_transfer_addresses(self):
+        """测试 hex 转账地址的方向检测"""
+        base58_address = BASE58_ADDRESS
+        hex_address = HEX_ADDRESS
+        transfers_self = [{
+            "transactionHash": "tx_hex_transfer",
+            "transferFromAddress": hex_address,
+            "transferToAddress": hex_address,
+            "amount": 1000000,
+            "tokenName": "_",
+            "timestamp": 1640000000000
+        }]
+        result = formatters.format_transaction_history(base58_address, transfers_self, 1)
+        assert result["transfers"][0]["from"] == base58_address
+        assert result["transfers"][0]["to"] == base58_address
         assert result["transfers"][0]["direction"] == "SELF"
 
     def test_trc20_token_info_parsing(self):
