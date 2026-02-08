@@ -806,6 +806,133 @@ def _handle_get_account_bandwidth(params: dict) -> dict:
         return _error_response("rpc_error", str(e))
 
 
+def _handle_lease_energy(params: dict) -> dict:
+    """处理 lease_energy 动作 — 租赁 TRON 能量"""
+    from tronzap_sdk import Client, TronZapException
+    from . import config
+    
+    address = params.get("to_address")
+    amount = params.get("amount")
+    duration = params.get("duration", 1)
+    activate_account = params.get("activate_account", False)
+    
+    # 参数校验
+    if not address:
+        return _error_response("missing_param", "缺少必填参数: to_address")
+    if amount is None:
+        return _error_response("missing_param", "缺少必填参数: amount")
+    if not validators.is_valid_address(address):
+        return _error_response("invalid_address", f"无效的地址格式: {address}")
+    
+    try:
+        amount = int(amount)
+        if amount <= 0:
+            return _error_response("invalid_amount", "能量数量必须为正整数")
+    except (TypeError, ValueError):
+        return _error_response("invalid_amount", "能量数量必须为整数")
+    
+    try:
+        duration = int(duration)
+        if duration not in (1, 24):
+            return _error_response("invalid_duration", "租赁时长必须是 1 或 24 小时")
+    except (TypeError, ValueError):
+        return _error_response("invalid_duration", "租赁时长必须是整数")
+    
+    # 获取 API 凭证
+    api_token = config.get_tronzap_api_token()
+    api_secret = config.get_tronzap_api_secret()
+    
+    if not api_token or not api_secret:
+        return _error_response(
+            "missing_credentials",
+            "缺少 TronZap API 凭证，请设置环境变量 TRONZAP_API_TOKEN 和 TRONZAP_API_SECRET"
+        )
+    
+    try:
+        client = Client(api_token=api_token, api_secret=api_secret)
+        result = client.create_energy_transaction(
+            address=address,
+            energy_amount=amount,
+            duration=duration,
+            activate_address=activate_account,
+        )
+        
+        # 构建返回结果
+        formatted_result = {
+            "address": address,
+            "energy_amount": amount,
+            "duration": duration,
+            "activate_account": activate_account,
+            "transaction_id": result.get("transaction_id") or result.get("tx_id") or result.get("id", ""),
+            "cost": result.get("cost", {}),
+            "status": result.get("status", "pending"),
+            "raw_response": result,
+        }
+        return formatters.format_lease_energy(formatted_result)
+        
+    except TronZapException as e:
+        return _error_response("tronzap_error", f"TronZap API 错误: {str(e)}")
+    except Exception as e:
+        return _error_response("unknown_error", f"租赁能量失败: {str(e)}")
+
+
+def _handle_lease_bandwidth(params: dict) -> dict:
+    """处理 lease_bandwidth 动作 — 租赁 TRON 带宽"""
+    from tronzap_sdk import Client, TronZapException
+    from . import config
+    
+    address = params.get("to_address")
+    amount = params.get("amount")
+    
+    # 参数校验
+    if not address:
+        return _error_response("missing_param", "缺少必填参数: to_address")
+    if amount is None:
+        return _error_response("missing_param", "缺少必填参数: amount")
+    if not validators.is_valid_address(address):
+        return _error_response("invalid_address", f"无效的地址格式: {address}")
+    
+    try:
+        amount = int(amount)
+        if amount <= 0:
+            return _error_response("invalid_amount", "带宽数量必须为正整数")
+    except (TypeError, ValueError):
+        return _error_response("invalid_amount", "带宽数量必须为整数")
+    
+    # 获取 API 凭证
+    api_token = config.get_tronzap_api_token()
+    api_secret = config.get_tronzap_api_secret()
+    
+    if not api_token or not api_secret:
+        return _error_response(
+            "missing_credentials",
+            "缺少 TronZap API 凭证，请设置环境变量 TRONZAP_API_TOKEN 和 TRONZAP_API_SECRET"
+        )
+    
+    try:
+        client = Client(api_token=api_token, api_secret=api_secret)
+        result = client.create_bandwidth_transaction(
+            address=address,
+            amount=amount,
+        )
+        
+        # 构建返回结果
+        formatted_result = {
+            "address": address,
+            "bandwidth_amount": amount,
+            "transaction_id": result.get("transaction_id") or result.get("tx_id") or result.get("id", ""),
+            "cost": result.get("cost", {}),
+            "status": result.get("status", "pending"),
+            "raw_response": result,
+        }
+        return formatters.format_lease_bandwidth(formatted_result)
+        
+    except TronZapException as e:
+        return _error_response("tronzap_error", f"TronZap API 错误: {str(e)}")
+    except Exception as e:
+        return _error_response("unknown_error", f"租赁带宽失败: {str(e)}")
+
+
 # 动作路由表 — 字典映射提升可维护性
 _ACTION_HANDLERS = {
     "skills": _handle_skills,
@@ -831,6 +958,8 @@ _ACTION_HANDLERS = {
     "generate_qrcode": _handle_generate_qrcode,
     "get_account_energy": _handle_get_account_energy,
     "get_account_bandwidth": _handle_get_account_bandwidth,
+    "lease_energy": _handle_lease_energy,
+    "lease_bandwidth": _handle_lease_bandwidth,
 }
 
 

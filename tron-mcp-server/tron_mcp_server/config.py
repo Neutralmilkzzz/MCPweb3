@@ -81,3 +81,16 @@ def get_usdt_contract() -> str:
 def get_usdt_contract_hex() -> str:
     """获取 USDT TRC20 合约地址 (Hex, 不含 0x)"""
     return os.getenv("USDT_CONTRACT_ADDRESS_HEX", "") or _preset("USDT_CONTRACT_ADDRESS_HEX")
+
+
+# ============ TronZap API 配置 ============
+
+
+def get_tronzap_api_token() -> str:
+    """获取 TronZap API Token"""
+    return os.getenv("TRONZAP_API_TOKEN", "")
+
+
+def get_tronzap_api_secret() -> str:
+    """获取 TronZap API Secret"""
+    return os.getenv("TRONZAP_API_SECRET", "")

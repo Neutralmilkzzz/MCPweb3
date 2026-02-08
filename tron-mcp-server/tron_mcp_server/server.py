@@ -473,6 +473,66 @@ def tron_generate_qrcode(
     })
 
 
+# ============ TronZap 资源租赁工具 ============
+
+@mcp.tool()
+def tron_lease_energy(
+    to_address: str,
+    amount: int,
+    duration: int = 1,
+    activate_account: bool = False,
+) -> dict:
+    """
+    租赁 TRON 能量 (Energy)。
+
+    能量用于执行智能合约操作（如 USDT TRC20 转账）。
+    通过租赁能量，可以避免在转账时燃烧 TRX 支付能量费用。
+
+    前置条件：需设置环境变量 TRONZAP_API_TOKEN 和 TRONZAP_API_SECRET。
+
+    Args:
+        to_address: 接收能量的钱包地址（Base58 格式以 T 开头）
+        amount: 能量数量（整数，例如：65150）
+        duration: 租赁时长（小时），可选值：1 或 24，默认 1
+        activate_account: 是否同时激活账户（如果账户未激活），默认 False
+
+    Returns:
+        包含 address, energy_amount, duration, transaction_id, cost, status, summary 的结果
+    """
+    return call_router.call("lease_energy", {
+        "to_address": to_address,
+        "amount": amount,
+        "duration": duration,
+        "activate_account": activate_account,
+    })
+
+
+@mcp.tool()
+def tron_lease_bandwidth(
+    to_address: str,
+    amount: int,
+) -> dict:
+    """
+    租赁 TRON 带宽 (Bandwidth)。
+
+    带宽用于支付交易的数据存储费用。
+    通过租赁带宽，可以避免在转账时消耗免费带宽或燃烧 TRX。
+
+    前置条件：需设置环境变量 TRONZAP_API_TOKEN 和 TRONZAP_API_SECRET。
+
+    Args:
+        to_address: 接收带宽的钱包地址（Base58 格式以 T 开头）
+        amount: 带宽数量（整数，例如：1000）
+
+    Returns:
+        包含 address, bandwidth_amount, transaction_id, cost, status, summary 的结果
+    """
+    return call_router.call("lease_bandwidth", {
+        "to_address": to_address,
+        "amount": amount,
+    })
+
+
 def main():
     """启动 MCP Server（支持 stdio 和 SSE 模式）"""
     import sys

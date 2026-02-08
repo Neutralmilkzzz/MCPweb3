@@ -24,6 +24,7 @@ dependencies = [
     "qrcode[pil]>=7.4.0",
     "rich>=13.0.0",
     "questionary>=2.0.0",
+    "tronzap-sdk>=0.1.0",
 ]
 
 # tronpy 在 Windows 上编译困难，作为可选依赖

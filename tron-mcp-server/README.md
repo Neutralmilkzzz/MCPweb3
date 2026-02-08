@@ -39,6 +39,7 @@
 - 👛 **钱包管理**：查看本地钱包地址及余额，不暴露私钥
 - 🛡️ **Gas 卫士**：拦截余额不足的"必死交易"
 - 🔒 **安全审计**：集成 TRONSCAN 黑名单 API 识别恶意地址
+- ⚡ **资源租赁**：通过 TronZap API 租赁能量/带宽，降低转账手续费
 
 ## 快速开始
 
@@ -97,7 +98,7 @@ tron-mcp-server\.venv\Scripts\tronmcp.exe onboard
 |------|------|------|
 | 1️⃣ | 🌐 **选择网络** | 主网（真实交易）或 Nile 测试网（开发调试） |
 | 2️⃣ | 🔐 **输入私钥** | 密码隐密输入，即时派生地址并校验 |
-| 3️⃣ | 🔑 **配置 API Keys** | TronGrid + TronScan（可选，带连接性测试） |
+| 3️⃣ | 🔑 **配置 API Keys** | TronGrid + TronScan + TronZap（可选，带连接性测试） |
 | 4️⃣ | 💾 **保存配置** | 自动写入 `.env` 文件并设置安全权限 |
 | 5️⃣ | ⚙️ **添加到 PATH** | 可选，让 `tronmcp` 命令全局可用 |
 | 6️⃣ | 🚀 **启动服务器** | 可选，立即启动 MCP Server（Stdio/SSE） |
@@ -150,6 +151,8 @@ TRON_NETWORK=mainnet          # 或 nile（测试网）
 TRON_PRIVATE_KEY=your_private_key_here  # 64位十六进制
 TRONGRID_API_KEY=your_key     # 可选
 TRONSCAN_API_KEY=your_key     # 可选
+TRONZAP_API_TOKEN=your_token  # 可选，用于能量/带宽租赁
+TRONZAP_API_SECRET=your_secret  # 可选，用于能量/带宽租赁
 ```
 
 ---
@@ -225,6 +228,13 @@ python -m tron_mcp_server.server --sse
 | `tron_get_account_energy` | 查询账户能量(Energy)资源情况 | `address` |
 | `tron_get_account_bandwidth` | 查询账户带宽(Bandwidth)资源情况 | `address` |
 
+### 资源租赁工具
+
+| 工具名 | 描述 | 参数 |
+|--------|------|------|
+| `tron_lease_energy` | 租赁 TRON 能量 (Energy)，降低 USDT 转账 Gas 费用 | `to_address`, `amount`, `duration` (1/24h), `activate_account` |
+| `tron_lease_bandwidth` | 租赁 TRON 带宽 (Bandwidth)，降低转账数据存储费用 | `to_address`, `amount` |
+
 ### 转账工具
 
 | 工具名 | 描述 | 参数 |
@@ -267,9 +277,7 @@ tron-mcp-server/
 │   ├── key_manager.py        # 本地私钥管理（签名/地址派生）
 │   ├── validators.py         # 参数校验
 │   ├── formatters.py         # 输出格式化
-│   └── config.py             # 配置管理
-├── install.py                # 🚀 一键安装脚本（自动环境搭建）
-├── run_tests.py              # 🧪 测试运行脚本
+│   └── config.py             # 配置管理（含 TronZap API 配置）
 ├── Changelog.md              # 版本更新日志
 ├── test_known_issues.py      # 已知问题测试
 ├── test_transfer_flow.py     # 转账流程测试
@@ -367,13 +375,21 @@ tronmcp --help               # 查看帮助
 `install.py` 会自动安装以下核心包：
 
 ```txt
-mcp>=0.9.0
-httpx>=0.27.0
+mcp>=1.0.0
+httpx>=0.24.0
+base58>=2.1.0
 ecdsa>=0.18.0
-pycryptodome>=3.20.0
-base58>=2.1.1
-rich>=13.7.0
-questionary>=2.0.1
+pycryptodome>=3.19.0
+python-dotenv>=1.0.0
+uvicorn>=0.20.0
+starlette>=0.27.0
+sse-starlette>=1.0.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+qrcode[pil]>=7.4.0
+rich>=13.0.0
+questionary>=2.0.0
+tronzap-sdk>=0.1.0
 ```
 
 ### 可选依赖
@@ -442,16 +458,17 @@ Skill 文件包含：
 
 MIT
 
-## 技术细节
+## 🔧 技术细节
 
 - **USDT 合约**: `TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t` (TRC20, 6 位小数)
 - **查询 API**: TRONSCAN REST（余额、交易状态、Gas 参数、安全检查）
 - **交易 API**: TronGrid（构建真实交易、广播签名交易）
+- **资源租赁 API**: TronZap（能量/带宽租赁服务）
 - **签名算法**: ECDSA secp256k1 + RFC 6979 确定性签名
 - **地址派生**: 私钥 → secp256k1 公钥 → Keccak256 → Base58Check
 - **传输协议**: stdio（默认）/ SSE（`--sse` 启动）
 - **默认端口**: 8765（SSE 模式，可通过 `MCP_PORT` 环境变量修改）
-- **关键依赖**: `mcp`, `httpx`, `ecdsa`, `pycryptodome`, `base58`
+- **关键依赖**: `mcp`, `httpx`, `ecdsa`, `pycryptodome`, `base58`, `rich`, `questionary`, `tronzap-sdk`
 
 ## 常见问题
 

@@ -260,7 +260,7 @@ description: 与 TRON 区块链交互的完整技能集。提供 14 个 MCP 标�
 
 ---
 
-### 交易操作类（5 个工具）
+### 交易操作类（7 个工具）
 
 #### 10. `tron_build_tx`
 构建未签名的转账交易。
@@ -418,6 +418,73 @@ description: 与 TRON 区块链交互的完整技能集。提供 14 个 MCP 标�
 
 ---
 
+#### 15. `tron_lease_energy`
+租赁 TRON 能量 (Energy)，用于降低 USDT 转账的 Gas 费用。
+
+能量是执行智能合约操作（如 USDT TRC20 转账）所需的资源。通过租赁能量，可以避免在转账时燃烧 TRX 支付能量费用。
+
+**参数:**
+- `to_address` (必填): 接收能量的钱包地址（Base58 格式以 T 开头）
+- `amount` (必填): 能量数量（整数，例如：65150）
+- `duration` (可选): 租赁时长（小时），可选值：1 或 24，默认 1
+- `activate_account` (可选): 是否同时激活账户（如果账户未激活），默认 False
+
+**前置条件:** 需设置环境变量 `TRONZAP_API_TOKEN` 和 `TRONZAP_API_SECRET`
+
+**返回:**
+- `address`: 接收能量的地址
+- `energy_amount`: 租赁的能量数量
+- `duration`: 租赁时长（小时）
+- `transaction_id`: 租赁交易哈希
+- `cost`: 费用详情（包含 TRX 和/或 USDT）
+- `status`: 交易状态（pending/success/failed）
+- `summary`: 人类可读的摘要
+
+**使用场景:**
+- 账户能量不足时，租赁能量以降低 USDT 转账成本
+- 批量操作前预先租赁充足能量
+- 为他人租赁能量（如帮助朋友激活账户）
+
+**示例:**
+```
+租赁 100000 能量到 Txxx，时长 1 小时
+→ 返回: "⚡ 能量租赁请求已提交：接收地址 Txxx..., 能量数量 100,000, 租赁时长 1 小时, 交易ID: abc123..., 状态: pending"
+```
+
+---
+
+#### 16. `tron_lease_bandwidth`
+租赁 TRON 带宽 (Bandwidth)，用于降低转账的数据存储费用。
+
+带宽是支付交易数据存储费用的资源。通过租赁带宽，可以避免在转账时消耗免费带宽或燃烧 TRX。
+
+**参数:**
+- `to_address` (必填): 接收带宽的钱包地址（Base58 格式以 T 开头）
+- `amount` (必填): 带宽数量（整数，例如：1000）
+
+**前置条件:** 需设置环境变量 `TRONZAP_API_TOKEN` 和 `TRONZAP_API_SECRET`
+
+**返回:**
+- `address`: 接收带宽的地址
+- `bandwidth_amount`: 租赁的带宽数量
+- `transaction_id`: 租赁交易哈希
+- `cost`: 费用详情（包含 TRX 和/或 USDT）
+- `status`: 交易状态（pending/success/failed）
+- `summary`: 人类可读的摘要
+
+**使用场景:**
+- 账户带宽不足时，租赁带宽以降低转账成本
+- 高频转账前预先租赁充足带宽
+- 为他人租赁带宽
+
+**示例:**
+```
+租赁 5000 带宽到 Txxx
+→ 返回: "🌐 带宽租赁请求已提交：接收地址 Txxx..., 带宽数量 5,000, 交易ID: def456..., 状态: pending"
+```
+
+---
+
 ## 工作流程指南
 
 ### 查询余额（单代币）
@@ -531,7 +598,363 @@ description: 与 TRON 区块链交互的完整技能集。提供 14 个 MCP 标�
 
 ---
 
-## 错误处理
+## 高级工作流（组合工具使用）
+
+本章节介绍如何将多个原子工具组合成智能工作流，实现自动化、优化的区块链操作。
+
+### 1. 智能资源管理（自动租赁 + 转账）
+
+**场景**: 用户想要转账，但账户资源（能量/带宽）不足。系统自动检测并租赁所需资源，然后执行转账。
+
+```
+用户: "转 100 USDT 到 Tyyyy，如果资源不够就自动租赁"
+
+工作流:
+1. 获取本地钱包地址（tron_get_wallet_info）
+2. 查询资源状态:
+   - tron_get_account_energy(address=钱包地址)
+   - tron_get_account_bandwidth(address=钱包地址)
+3. 判断资源是否充足:
+   - USDT 转账需要约 65000 Energy
+   - USDT 转账需要约 350 Bandwidth
+4. 制定租赁策略:
+   - 如果能量充足且带宽充足 → 直接转账
+   - 如果能量不足 → 租赁能量（tron_lease_energy）
+   - 如果带宽不足 → 租赁带宽（tron_lease_bandwidth）
+   - 优先级：能量优先（USDT 转账能量消耗更大）
+5. 执行租赁并等待确认（调用 tron_get_transaction_status）
+6. 执行安全转账流程（安全检查 → 构建 → 签名 → 广播）
+7. 返回完整结果，包括租赁和转账两部分信息
+```
+
+**关键点**:
+- 租赁是独立交易，需要单独签名和广播
+- 租赁交易确认后，资源才会到账
+- 可配置租赁策略：自动选择租赁时长和数量
+
+---
+
+### 2. 资金流追踪（多级查询）
+
+**场景**: 追踪一笔资金的完整流向，从源头到最终目的地。
+
+```
+用户: "追踪交易 abc123... 的资金流向"
+
+工作流:
+1. 调用 tron_get_transaction_status(txid="abc123...") 获取交易详情
+   - 获取: from_address, to_address, amount, token_type
+2. 根据交易方向确定追踪起点:
+   - 如果用户是发送方 → 追踪资金去向 → 查询接收方地址
+   - 如果用户是接收方 → 追踪资金来源 → 查询发送方地址
+3. 递归追踪（可设置深度限制，如 3 层）:
+   对于每个相关地址:
+   - 调用 tron_get_transaction_history(address=该地址, limit=10, token=交易代币)
+   - 筛选与当前资金流动相关的交易
+   - 构建资金流向图谱
+4. 综合分析:
+   - 资金流转路径
+   - 各节点地址的安全性（调用 tron_check_account_safety）
+   - 时间线
+5. 返回可视化或文本形式的资金流向报告
+```
+
+**示例输出**:
+```
+资金流向追踪（深度 3）:
+第 1 层: Txxx (用户) → Tyyy (接收方), 金额 100 USDT, 时间 2026-02-09 10:30
+第 2 层: Tyyy → Tzzz, 金额 80 USDT, 时间 10:35
+第 3 层: Tzzz → Twww, 金额 50 USDT, 时间 10:40
+...
+```
+
+---
+
+### 3. 批量余额查询
+
+**场景**: 同时查询多个地址的余额（如空投分发、批量审计）。
+
+```
+用户: "查一下这些地址的 USDT 余额: [Txxx, Tyyy, Tzzz]"
+
+工作流:
+1. 解析地址列表
+2. 并行调用（或串行）tron_get_usdt_balance 查询每个地址
+3. 汇总结果:
+   - 总余额
+   - 每个地址的详细余额
+   - 余额排序
+4. 返回表格或列表形式的结果
+```
+
+---
+
+### 4. 自动安全审计
+
+**场景**: 对地址进行全面的安全评估，包括黑名单检查、交易行为分析、资产分布等。
+
+```
+用户: "全面审计地址 Txxx 的安全性"
+
+工作流:
+1. 调用 tron_check_account_safety(address="Txxx") 基础安全检查
+2. 调用 tron_get_transaction_history(address="Txxx", limit=20) 分析交易模式
+   - 检查是否有大量小额转账（可能是洗钱）
+   - 检查是否与已知风险地址交互
+3. 调用 tron_get_account_tokens(address="Txxx") 查看资产分布
+   - 检查是否持有大量未知代币（可能是诈骗代币）
+4. 调用 tron_get_internal_transactions(address="Txxx", limit=10) 查看 DeFi 操作
+   - 检查是否与恶意合约交互
+5. 综合评分:
+   - 黑名单标记（一票否决）
+   - 交易行为异常度
+   - 资产风险度
+6. 返回详细审计报告
+```
+
+---
+
+### 5. 资源优化转账（自动租赁 + 转账）
+
+**场景**: 用户希望以最低成本完成转账，系统自动判断是否需要租赁资源，并选择最优方案。
+
+```
+用户: "用最低手续费转 100 USDT 到 Tyyyy"
+
+工作流:
+1. 获取本地钱包地址（tron_get_wallet_info）
+2. 查询资源状态:
+   - tron_get_account_energy(address=钱包地址)
+   - tron_get_account_bandwidth(address=钱包地址)
+3. 判断资源是否充足:
+   - USDT 转账需要约 65000 Energy
+   - USDT 转账需要约 350 Bandwidth
+4. 制定优化策略:
+   - 如果能量充足且带宽充足 → 直接转账
+   - 如果能量不足 → 先租赁能量（tron_lease_energy）
+   - 如果带宽不足 → 先租赁带宽（tron_lease_bandwidth）
+   - 如果两者都不足 → 按优先级租赁（能量优先，因为 USDT 转账能量消耗更大）
+5. 执行租赁（可能需要多次等待确认）
+6. 执行转账（tron_transfer 或分步构建/签名/广播）
+7. 返回总成本（租赁费 + 转账费）和操作结果
+```
+
+---
+
+### 6. 交易回执与状态监控
+
+**场景**: 用户发起交易后，持续监控直到确认。
+
+```
+用户: "转账后帮我监控直到到账"
+
+工作流:
+1. 执行转账（tron_transfer 或分步流程）
+2. 获取交易哈希（txid）
+3. 循环查询状态（最多 N 次，间隔 T 秒）:
+   - 调用 tron_get_transaction_status(txid)
+   - 如果状态为 "pending" → 继续等待
+   - 如果状态为 "成功" → 返回成功，停止监控
+   - 如果状态为 "失败" → 返回失败，停止监控
+4. 超时处理: 如果超过最大重试次数仍未确认，建议用户手动查询
+```
+
+---
+
+### 7. 钱包快照
+
+**场景**: 定期记录钱包状态，用于对账或审计。
+
+```
+用户: "给我钱包做个快照"
+
+工作流:
+1. 获取钱包地址（tron_get_wallet_info）
+2. 查询所有资产:
+   - tron_get_balance(address)
+   - tron_get_usdt_balance(address)
+   - tron_get_account_tokens(address)  # 获取所有代币
+3. 查询资源状态:
+   - tron_get_account_energy(address)
+   - tron_get_account_bandwidth(address)
+4. 查询最近交易:
+   - tron_get_transaction_history(address, limit=10)
+5. 组装快照数据:
+   - 时间戳
+   - 地址
+   - 资产列表（含余额）
+   - 资源使用情况
+   - 最近交易摘要
+6. 返回结构化快照（可保存为 JSON 文件）
+```
+
+---
+
+### 8. 地址关系分析
+
+**场景**: 分析地址之间的关联性（如是否为同一控制人）。
+
+```
+用户: "分析地址 Txxx 和 Tyyy 是否有关联"
+
+工作流:
+1. 对每个地址:
+   - 调用 tron_get_transaction_history(address, limit=50)
+   - 调用 tron_get_internal_transactions(address, limit=20)
+2. 提取共同点:
+   - 是否有相互转账
+   - 是否与相同的第三方地址频繁交互
+   - 是否在同一时间段活跃
+   - 是否使用相同的 memo 模式
+3. 调用 tron_check_account_safety 检查两个地址的安全性
+4. 综合判断:
+   - 直接资金往来 → 强关联
+   - 共同交易对手 → 中度关联
+   - 时间重叠 → 弱关联
+5. 返回关联度评分和证据
+```
+
+---
+
+### 9. 交易深度查询与验证
+
+**场景**: 用户提供交易哈希，需要完整验证交易的真实性和细节。
+
+```
+用户: "验证交易 abc123... 是否真实，并告诉我所有细节"
+
+工作流:
+1. 调用 tron_get_transaction_status(txid="abc123...") 获取基础状态
+2. 如果交易存在且已确认:
+   - 提取交易详细信息: from, to, amount, token, fee, block_number, timestamp
+3. 调用 tron_check_account_safety(address=from) 检查发送方安全性
+4. 调用 tron_check_account_safety(address=to) 检查接收方安全性
+5. 调用 tron_get_transaction_history(address=from, limit=10) 查看发送方相关历史
+6. 调用 tron_get_transaction_history(address=to, limit=10) 查看接收方相关历史
+7. 综合验证:
+   - 交易是否在链上确认
+   - 双方地址是否安全
+   - 交易金额是否合理（与历史对比）
+   - 时间是否合理
+8. 返回完整验证报告，包括:
+   - 交易真实性
+   - 双方安全状态
+   - 交易上下文
+   - 风险提示（如有）
+```
+
+---
+
+### 10. 自动化转账流水账
+
+**场景**: 记录所有转账操作，生成流水账本。
+
+```
+用户: "帮我记录最近的转账记录"
+
+工作流:
+1. 获取钱包地址（tron_get_wallet_info）
+2. 调用 tron_get_transaction_history(address=钱包地址, limit=50, token="USDT") 获取 USDT 转账
+3. 调用 tron_get_transaction_history(address=钱包地址, limit=50, token="TRX") 获取 TRX 转账
+4. 合并并按时间排序
+5. 对每笔交易:
+   - 调用 tron_get_transaction_status(txid) 确认最终状态
+   - 标记: 成功/失败/pending
+6. 生成流水账表格:
+   | 日期 | 类型 | 对方地址 | 金额 | 状态 | 交易哈希 |
+   |------|------|----------|------|------|----------|
+7. 计算统计:
+   - 总转出金额
+   - 总转入金额
+   - 净流量
+8. 返回流水账和统计摘要
+```
+
+---
+
+### 11. 智能空投处理
+
+**场景**: 用户收到空投代币，需要快速判断是否安全并决定是否领取。
+
+```
+用户: "我收到空投了，这个代币安全吗？地址是 Txxx"
+
+工作流:
+1. 调用 tron_check_account_safety(address="Txxx") 检查空投来源地址
+2. 调用 tron_get_account_tokens(address="Txxx") 查看该地址持有的代币
+   - 检查是否持有大量未知/可疑代币
+3. 调用 tron_get_transaction_history(address="Txxx", limit=20) 分析交易模式
+   - 是否频繁向多个地址发送小额代币（可能是诈骗推广）
+4. 如果来源地址安全:
+   - 建议用户可以领取
+   - 可选：调用 tron_get_usdt_balance 查看用户当前余额
+   - 提醒用户注意空投代币的价值和流动性
+5. 如果来源地址有风险:
+   - 明确警告用户不要交互
+   - 解释风险类型（如诈骗、钓鱼等）
+6. 返回安全评估和建议
+```
+
+---
+
+### 12. 成本对比分析（租赁 vs 燃烧）
+
+**场景**: 用户想了解是租赁资源还是直接燃烧 TRX 更划算。
+
+```
+用户: "转账 100 USDT，是租赁能量划算还是直接燃烧 TRX 划算？"
+
+工作流:
+1. 查询当前资源状态:
+   - tron_get_account_energy(address=钱包地址)
+   - tron_get_account_bandwidth(address=钱包地址)
+2. 计算直接燃烧成本:
+   - 能量费: 65000 Energy × 当前能量价格（从 tron_get_gas_parameters 获取）
+   - 带宽费: 350 Bandwidth × 当前带宽价格（如有）
+   - 总成本 = 能量费 + 带宽费
+3. 计算租赁成本:
+   - 调用 tron_lease_energy 查询租赁价格（不实际执行，仅询价）
+   - 调用 tron_lease_bandwidth 查询租赁价格
+   - 比较租赁费 vs 燃烧费
+4. 考虑资源剩余:
+   - 如果当前有充足免费资源 → 直接转账最划算
+   - 如果资源不足但租赁便宜 → 建议租赁
+   - 如果租赁费高于燃烧费 → 建议直接燃烧
+5. 返回成本对比表格和推荐方案
+```
+
+---
+
+## 最佳实践
+
+### 错误处理原则
+
+1. **每个工具调用都必须有异常捕获**
+2. **网络请求失败时提供重试建议**
+3. **关键操作（如转账）前必须进行安全检查**
+4. **返回给用户的错误信息要友好且可操作**
+
+### 性能优化
+
+1. **并行查询**: 对多个独立地址的查询可以并行执行
+2. **缓存**: 频繁查询的数据（如 Gas 价格）可短期缓存
+3. **分页**: 查询历史记录时合理使用 limit 参数，避免一次查询过多
+
+### 安全建议
+
+1. **私钥保护**: 永远不要在日志或响应中暴露私钥
+2. **地址验证**: 所有用户输入的地址都要经过格式验证
+3. **金额限制**: 大额转账前建议用户多次确认
+4. **风险提示**: 检测到风险时明确告知用户，并提供详细风险类型
+
+---
+
+## 技术细节
+
+- **USDT 合约**: `TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t` (TRC20, 6 位小数)
+- **精度**: USDT 和 TRX 均使用 6 位小数
+- **API**: 通过 TRONSCAN REST API 与 TRON 网络通信
+- **接口来源**: account, transaction-info, chain/parameters, block
 
 ### 常见错误
 

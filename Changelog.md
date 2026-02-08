@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-02-09 (v1.0.6) — TronZap 能量/带宽租赁集成
+
+### ✅ 新增：TronZap 资源租赁服务 (PR #XX)
+
+- **新增工具**：
+  - `tron_lease_energy`：租赁 TRON 能量 (Energy)，用于降低 USDT 转账的 Gas 费用
+  - `tron_lease_bandwidth`：租赁 TRON 带宽 (Bandwidth)，用于降低转账的数据存储费用
+- **配置支持**：
+  - 新增 `TRONZAP_API_TOKEN` 和 `TRONZAP_API_SECRET` 环境变量配置
+  - `onboard.py` 交互式配置向导支持可选 TronZap API 配置
+- **SDK 集成**：通过 `tronzap-sdk` 与 TronZap API 对接
+- **参数设计**：
+  - `tron_lease_energy`：`to_address` (必填), `amount` (必填, 整数), `duration` (选填, 1/24小时), `activate_account` (选填, 默认 False)
+  - `tron_lease_bandwidth`：`to_address` (必填), `amount` (必填, 整数)
+- **错误处理**：捕获 `TronZapException`，返回清晰的错误描述
+- **返回值**：包含 `transaction_id`, `cost`, `status` 等交易详情
+
+### 📚 文档同步
+
+- README 更新：新增 TronZap 租赁功能说明、工具列表、配置指南
+- 依赖更新：`requirements.txt` 和 `pyproject.toml` 添加 `tronzap-sdk>=0.1.0`
+
+---
+
 ## 2026-02-08 (v1.0.5) — 地址簿 + 资源查询 + Memo 备注
 
 ### ✅ 新增：本地地址簿 (PR #52)

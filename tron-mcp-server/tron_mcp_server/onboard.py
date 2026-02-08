@@ -7,7 +7,7 @@
 功能:
     1. 选择网络（主网 mainnet / 测试网 nile）
     2. 引导用户配置 TRON_PRIVATE_KEY（隐密输入 + 即时派生地址校验）
-    3. 引导配置 TRONGRID_API_KEY / TRONSCAN_API_KEY（含连接性测试）
+    3. 引导配置 TRONGRID_API_KEY / TRONSCAN_API_KEY / TRONZAP_API_TOKEN/SECRET（含连接性测试）
     4. 持久化写入 .env 并设置安全权限
     5. 可选：直接启动 MCP 服务器
 """
@@ -247,13 +247,14 @@ def _test_trongrid_key(api_key: str, network: str = "mainnet") -> tuple[bool, st
         return False, str(e)
 
 
-def step_api_keys(network: str) -> tuple[str, str] | None:
+def step_api_keys(network: str) -> tuple[str, str, str, str] | None:
     """引导用户输入 API Keys 并进行连接性测试"""
     console.print(
         Panel(
             "[bold white]🔑 Step 3/6 · API Keys 配置[/]\n"
             "[dim]TronGrid API Key 用于链上数据查询，TronScan API Key 用于浏览器数据。\n"
-            "免费申请: https://www.trongrid.io/  |  https://tronscan.org/[/]",
+            "TronZap API 用于能量/带宽租赁服务。\n"
+            "免费申请: https://www.trongrid.io/  |  https://tronscan.org/  |  https://tronzap.io/[/]",
             border_style=BRAND_BLUE,
             box=box.ROUNDED,
         )
@@ -312,14 +313,75 @@ def step_api_keys(network: str) -> tuple[str, str] | None:
         console.print(f"  [dim]⏭️  已跳过 TronScan API Key[/]")
 
     console.print()
-    return trongrid_key, tronscan_key
+
+    # ── TronZap API 配置（可选）──
+    console.print(Panel(
+        "[bold white]⚡ TronZap 能量租赁服务（可选）[/]\n"
+        "[dim]TronZap 提供 TRON 能量和带宽租赁服务，可降低转账手续费。\n"
+        "如果您不需要此功能，可以直接跳过。[/]",
+        border_style=BRAND_CYAN,
+        box=box.ROUNDED,
+    ))
+
+    configure_tronzap = questionary.confirm(
+        "是否配置 TronZap API？（用于能量/带宽租赁）",
+        default=False,
+        style=ALIPAY_STYLE,
+    ).ask()
+
+    if configure_tronzap is None:
+        return None
+
+    tronzap_token = ""
+    tronzap_secret = ""
+
+    if configure_tronzap:
+        # TronZap API Token
+        tronzap_token = questionary.text(
+            "请输入 TronZap API Token：",
+            style=ALIPAY_STYLE,
+            instruction="(从 tronzap.io 获取)",
+        ).ask()
+
+        if tronzap_token is None:
+            return None
+
+        tronzap_token = tronzap_token.strip()
+
+        if tronzap_token:
+            console.print(f"  [bold {BRAND_GREEN}]✅ TronZap API Token 已记录[/]")
+
+            # TronZap API Secret
+            tronzap_secret = questionary.text(
+                "请输入 TronZap API Secret：",
+                style=ALIPAY_STYLE,
+                instruction="(从 tronzap.io 获取)",
+            ).ask()
+
+            if tronzap_secret is None:
+                return None
+
+            tronzap_secret = tronzap_secret.strip()
+
+            if tronzap_secret:
+                console.print(f"  [bold {BRAND_GREEN}]✅ TronZap API Secret 已记录[/]")
+            else:
+                console.print(f"  [bold {BRAND_GOLD}]⚠️  TronZap API Secret 未配置，租赁功能将不可用[/]")
+                tronzap_token = ""  # 没有 secret 则清空 token
+        else:
+            console.print(f"  [dim]⏭️  已跳过 TronZap 配置[/]")
+    else:
+        console.print(f"  [dim]⏭️  已跳过 TronZap 配置[/]")
+
+    console.print()
+    return trongrid_key, tronscan_key, tronzap_token, tronzap_secret
 
 
 # ─────────────────────────────────────────────
 # Step 4: 持久化 .env
 # ─────────────────────────────────────────────
 
-def step_save_env(network: str, private_key: str, trongrid_key: str, tronscan_key: str) -> bool:
+def step_save_env(network: str, private_key: str, trongrid_key: str, tronscan_key: str, tronzap_token: str = "", tronzap_secret: str = "") -> bool:
     """将配置写入 .env 文件并设置安全权限"""
     console.print(
         Panel(
@@ -342,7 +404,7 @@ def step_save_env(network: str, private_key: str, trongrid_key: str, tronscan_ke
                 if stripped and not stripped.startswith("#") and "=" in stripped:
                     key = stripped.split("=", 1)[0].strip()
                     # 跳过即将覆盖的 key
-                    if key in ("TRON_NETWORK", "TRON_PRIVATE_KEY", "TRONGRID_API_KEY", "TRONSCAN_API_KEY"):
+                    if key in ("TRON_NETWORK", "TRON_PRIVATE_KEY", "TRONGRID_API_KEY", "TRONSCAN_API_KEY", "TRONZAP_API_TOKEN", "TRONZAP_API_SECRET"):
                         existing_keys.add(key)
                         continue
                 existing_lines.append(line.rstrip("\n"))
@@ -363,6 +425,10 @@ def step_save_env(network: str, private_key: str, trongrid_key: str, tronscan_ke
         new_entries.append(f"TRONGRID_API_KEY={trongrid_key}")
     if tronscan_key:
         new_entries.append(f"TRONSCAN_API_KEY={tronscan_key}")
+    if tronzap_token:
+        new_entries.append(f"TRONZAP_API_TOKEN={tronzap_token}")
+    if tronzap_secret:
+        new_entries.append(f"TRONZAP_API_SECRET={tronzap_secret}")
     new_entries.append("")
 
     final_content = "\n".join(existing_lines + new_entries) + "\n"
@@ -393,7 +459,7 @@ def step_save_env(network: str, private_key: str, trongrid_key: str, tronscan_ke
 # 完成摘要
 # ─────────────────────────────────────────────
 
-def show_summary(network: str, private_key: str, trongrid_key: str, tronscan_key: str):
+def show_summary(network: str, private_key: str, trongrid_key: str, tronscan_key: str, tronzap_token: str = "", tronzap_secret: str = ""):
     """显示配置完成的摘要表格"""
     address = get_address_from_private_key(private_key)
 
@@ -422,6 +488,10 @@ def show_summary(network: str, private_key: str, trongrid_key: str, tronscan_key
     table.add_row(
         "🔍 TronScan Key",
         f"[bold {BRAND_GREEN}]已配置[/]" if tronscan_key else f"[dim]未配置[/]",
+    )
+    table.add_row(
+        "⚡ TronZap",
+        f"[bold {BRAND_GREEN}]已配置[/]（可租赁能量/带宽）" if tronzap_token and tronzap_secret else f"[dim]未配置[/]",
     )
     table.add_row("📁 配置文件", f"[dim]{Path.cwd() / '.env'}[/]")
 
@@ -769,16 +839,16 @@ def main():
         if result is None:
             console.print(f"\n  [bold {BRAND_GOLD}]👋 配置已取消，期待下次再见！[/]\n")
             sys.exit(0)
-        trongrid_key, tronscan_key = result
+        trongrid_key, tronscan_key, tronzap_token, tronzap_secret = result
 
         # ── Step 4: 保存 ──
-        success = step_save_env(network, private_key, trongrid_key, tronscan_key)
+        success = step_save_env(network, private_key, trongrid_key, tronscan_key, tronzap_token, tronzap_secret)
         if not success:
             console.print(f"\n  [bold {BRAND_RED}]❌ 配置保存失败，请检查文件权限后重试。[/]\n")
             sys.exit(1)
 
         # ── 完成 ──
-        show_summary(network, private_key, trongrid_key, tronscan_key)
+        show_summary(network, private_key, trongrid_key, tronscan_key, tronzap_token, tronzap_secret)
 
         # ── Step 5: 环境变量配置 ──
         step_setup_path()

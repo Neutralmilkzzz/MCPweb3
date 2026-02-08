@@ -744,3 +744,61 @@ def format_account_bandwidth(result: dict) -> dict:
         lines.append(f"  📌 当前带宽约可执行 {trx_transfers} 笔 TRX 转账(~{270}字节) 或 {usdt_transfers} 笔 USDT 转账(~{350}字节)")
     
     return {**result, "summary": "\n".join(lines)}
+
+
+def format_lease_energy(result: dict) -> dict:
+    """格式化能量租赁结果"""
+    address = result.get("address", "")
+    energy_amount = result.get("energy_amount", 0)
+    duration = result.get("duration", 1)
+    transaction_id = result.get("transaction_id", "")
+    cost = result.get("cost", {})
+    status = result.get("status", "pending")
+    
+    lines = [f"⚡ 能量租赁请求已提交："]
+    lines.append(f"  接收地址: {address}")
+    lines.append(f"  能量数量: {energy_amount:,}")
+    lines.append(f"  租赁时长: {duration} 小时")
+    
+    if transaction_id:
+        lines.append(f"  交易ID: {transaction_id}")
+    
+    if cost:
+        cost_trx = cost.get("trx", 0)
+        cost_usdt = cost.get("usdt", 0)
+        if cost_trx:
+            lines.append(f"  费用: {cost_trx} TRX")
+        if cost_usdt:
+            lines.append(f"  费用: {cost_usdt} USDT")
+    
+    lines.append(f"  状态: {status}")
+    
+    return {**result, "summary": "\n".join(lines)}
+
+
+def format_lease_bandwidth(result: dict) -> dict:
+    """格式化带宽租赁结果"""
+    address = result.get("address", "")
+    bandwidth_amount = result.get("bandwidth_amount", 0)
+    transaction_id = result.get("transaction_id", "")
+    cost = result.get("cost", {})
+    status = result.get("status", "pending")
+    
+    lines = [f"🌐 带宽租赁请求已提交："]
+    lines.append(f"  接收地址: {address}")
+    lines.append(f"  带宽数量: {bandwidth_amount:,}")
+    
+    if transaction_id:
+        lines.append(f"  交易ID: {transaction_id}")
+    
+    if cost:
+        cost_trx = cost.get("trx", 0)
+        cost_usdt = cost.get("usdt", 0)
+        if cost_trx:
+            lines.append(f"  费用: {cost_trx} TRX")
+        if cost_usdt:
+            lines.append(f"  费用: {cost_usdt} USDT")
+    
+    lines.append(f"  状态: {status}")
+    
+    return {**result, "summary": "\n".join(lines)}
