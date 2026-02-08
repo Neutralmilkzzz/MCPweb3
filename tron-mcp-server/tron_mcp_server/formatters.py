@@ -2,6 +2,8 @@
 
 import json
 
+from .tron_client import _normalize_address
+
 # 资源消耗常量 (Resource Cost Constants)
 USDT_TRANSFER_ENERGY_COST = 65000  # 每笔 USDT 转账约消耗的 Energy
 TRX_TRANSFER_BANDWIDTH_COST = 270  # 每笔 TRX 转账约消耗的带宽（字节）
@@ -353,6 +355,7 @@ def format_transaction_history(
         格式化的交易历史结果
     """
     formatted_transfers = []
+    normalized_address = _normalize_address(address) if address else ""
     
     for tx in transfers:
         # 提取交易哈希
@@ -361,6 +364,8 @@ def format_transaction_history(
         # 提取发送方和接收方地址
         from_addr = tx.get("transferFromAddress") or tx.get("from_address") or tx.get("from") or ""
         to_addr = tx.get("transferToAddress") or tx.get("to_address") or tx.get("to") or ""
+        from_addr = _normalize_address(from_addr) if from_addr else ""
+        to_addr = _normalize_address(to_addr) if to_addr else ""
         
         # 提取金额（使用显式 None 检查避免零值被跳过）
         amount_raw = tx.get("quant")
@@ -404,12 +409,12 @@ def format_transaction_history(
         # 计算方向
         direction = "OTHER"
         if from_addr and to_addr:
-            if from_addr == address:
-                if to_addr == address:
+            if from_addr == normalized_address:
+                if to_addr == normalized_address:
                     direction = "SELF"
                 else:
                     direction = "OUT"
-            elif to_addr == address:
+            elif to_addr == normalized_address:
                 direction = "IN"
         
         formatted_transfers.append({
@@ -428,12 +433,12 @@ def format_transaction_history(
         filter_text = f"（筛选条件：{token_filter}）"
     
     summary = (
-        f"地址 {address} 共有 {total} 笔交易记录{filter_text}，"
+        f"地址 {normalized_address} 共有 {total} 笔交易记录{filter_text}，"
         f"当前显示最近 {len(formatted_transfers)} 笔。"
     )
     
     return {
-        "address": address,
+        "address": normalized_address,
         "total": total,
         "displayed": len(formatted_transfers),
         "token_filter": token_filter,
