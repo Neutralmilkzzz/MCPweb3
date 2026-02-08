@@ -2,6 +2,11 @@
 
 import json
 
+# 资源消耗常量 (Resource Cost Constants)
+USDT_TRANSFER_ENERGY_COST = 65000  # 每笔 USDT 转账约消耗的 Energy
+TRX_TRANSFER_BANDWIDTH_COST = 270  # 每笔 TRX 转账约消耗的带宽（字节）
+USDT_TRANSFER_BANDWIDTH_COST = 350  # 每笔 USDT 转账约消耗的带宽（字节）
+
 
 def format_usdt_balance(address: str, balance_raw: int) -> dict:
     """
@@ -680,9 +685,9 @@ def format_account_energy(result: dict) -> dict:
         lines.append(f"  委托获得: {delegated_trx:,.2f} TRX")
     
     # 给出 USDT 转账参考
-    usdt_transfers = energy_remaining // 65000 if energy_remaining > 0 else 0
+    usdt_transfers = energy_remaining // USDT_TRANSFER_ENERGY_COST if energy_remaining > 0 else 0
     if usdt_transfers > 0:
-        lines.append(f"  📌 当前能量约可免费执行 {usdt_transfers} 笔 USDT 转账（每笔约 65000 Energy）")
+        lines.append(f"  📌 当前能量约可免费执行 {usdt_transfers} 笔 USDT 转账（每笔约 {USDT_TRANSFER_ENERGY_COST:,} Energy）")
     elif energy_limit > 0:
         lines.append(f"  📌 能量已耗尽，USDT 转账将燃烧 TRX 支付费用")
     
@@ -720,9 +725,9 @@ def format_account_bandwidth(result: dict) -> dict:
         lines.append(f"  自质押: {frozen_trx:,.2f} TRX")
     
     # 给出转账参考
-    trx_transfers = total_remaining // 270 if total_remaining > 0 else 0
-    usdt_transfers = total_remaining // 350 if total_remaining > 0 else 0
+    trx_transfers = total_remaining // TRX_TRANSFER_BANDWIDTH_COST if total_remaining > 0 else 0
+    usdt_transfers = total_remaining // USDT_TRANSFER_BANDWIDTH_COST if total_remaining > 0 else 0
     if total_remaining > 0:
-        lines.append(f"  📌 当前带宽约可执行 {trx_transfers} 笔 TRX 转账(~270字节) 或 {usdt_transfers} 笔 USDT 转账(~350字节)")
+        lines.append(f"  📌 当前带宽约可执行 {trx_transfers} 笔 TRX 转账(~{TRX_TRANSFER_BANDWIDTH_COST}字节) 或 {usdt_transfers} 笔 USDT 转账(~{USDT_TRANSFER_BANDWIDTH_COST}字节)")
     
     return {**result, "summary": "\n".join(lines)}
