@@ -49,6 +49,13 @@
 #### 步骤 1: 运行安装脚本
 
 ```powershell
+# 在项目根目录运行
+python install.py
+```
+
+或在 `tron-mcp-server` 子目录中运行：
+
+```powershell
 cd tron-mcp-server
 python install.py
 ```
