@@ -57,7 +57,59 @@ from tron_mcp_server.tx_builder import (
 from tron_mcp_server import call_router
 from tron_mcp_server import formatters
 
+import asyncio
+import time
 
+class TestSystemPerformance(unittest.IsolatedAsyncioTestCase):
+    """
+    系统压力测试与高并发稳定性
+    """
+
+    # 修正点：将 get_account_v2 改为 get_account_status 或 _get_account
+    # 考虑到 call_router 内部通常调用公有接口，这里改为 get_account_status
+    @patch('tron_mcp_server.tron_client.get_account_status')
+    @patch('tron_mcp_server.tron_client.check_account_risk')
+    async def test_concurrent_routing_stress(self, mock_risk, mock_account):
+        """
+        高并发场景下的路由与格式化压力测试
+        """
+        # 匹配 get_account_status 的返回结构
+        mock_account.return_value = {
+            "address": "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7",
+            "is_activated": True,
+            "has_trx": True,
+            "trx_balance": 1000.0,
+            "total_transactions": 500
+        }
+        mock_risk.return_value = {
+            "is_risky": False,
+            "risk_type": "Safe",
+            "tags": {"Blue": "Binance"},
+            "is_safe": True # 确保包含此字段供断言使用
+        }
+
+        concurrent_tasks = 50
+        start_time = time.perf_counter()
+
+        async def run_router_call(i):
+            # 确保你的 call_router.call 内部逻辑会触发上述 Mock
+            return call_router.call("check_account_safety", {
+                "address": f"TAddress_{i}"
+            })
+
+        tasks = [run_router_call(i) for i in range(concurrent_tasks)]
+        results = await asyncio.gather(*tasks)
+
+        end_time = time.perf_counter()
+        duration = end_time - start_time
+        tps = concurrent_tasks / duration
+
+        print(f"\n[STRESS TEST] 并发请求数: {concurrent_tasks}, 总耗时: {duration:.4f}s, TPS: {tps:.2f}")
+        
+        # 性能断言：逻辑处理应非常快
+        self.assertLess(duration, 1.0, "并发路由处理速度过慢")
+        self.assertEqual(len(results), concurrent_tasks)
+        
 # ============================================================================
 # 第一部分：风险检测模块 (tron_client.py) 的单元测试
 # ============================================================================
