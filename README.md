@@ -113,7 +113,7 @@ pip install -r requirements.txt
 ### 2. 配置环境变量
 
 **Windows:**
-```
+```bash
 copy .env.example .env
 # 编辑 .env 文件，按需配置：
 # - TRON_NETWORK: 选择网络（mainnet 或 nile），默认 mainnet
