@@ -19,6 +19,32 @@ import platform
 from pathlib import Path
 
 
+def get_platform_info(install_dir):
+    """获取当前平台信息"""
+    system = platform.system()
+    if system == "Windows":
+        return {
+            "name": "Windows",
+            "activate_cmd": f'"{install_dir}\\.venv\\Scripts\\Activate.ps1"',
+            "tronmcp_path": f'"{install_dir}\\.venv\\Scripts\\tronmcp.exe"',
+            "shell": "powershell"
+        }
+    elif system == "Darwin":  # macOS
+        return {
+            "name": "macOS",
+            "activate_cmd": f'source "{install_dir}/.venv/bin/activate"',
+            "tronmcp_path": f'"{install_dir}/.venv/bin/tronmcp"',
+            "shell": "bash"
+        }
+    else:  # Linux 或其他 Unix-like
+        return {
+            "name": "Linux",
+            "activate_cmd": f'source "{install_dir}/.venv/bin/activate"',
+            "tronmcp_path": f'"{install_dir}/.venv/bin/tronmcp"',
+            "shell": "bash"
+        }
+
+
 def detect_python_command():
     """自动检测可用的 Python 命令"""
     # 尝试常见的 Python 命令
@@ -87,7 +113,8 @@ def main():
 
     project_dir = Path(__file__).parent.resolve()
     venv_dir = project_dir / ".venv"
-    # 如果 pyproject.toml 不在根目录，尝试在 tron-mcp-server 子目录中查找
+    
+    # 确定安装目录（pyproject.toml 所在位置）
     mcp_server_dir = project_dir / "tron-mcp-server"
     if not (project_dir / "pyproject.toml").exists() and (mcp_server_dir / "pyproject.toml").exists():
         install_dir = mcp_server_dir
@@ -152,21 +179,61 @@ def main():
     print("  下一步：")
     print("="*60)
     print()
+    
+    # 获取平台信息
+    platform_info = get_platform_info(install_dir)
+    system = platform.system()
+    
+    print(f"  🖥️  检测到操作系统: {platform_info['name']}")
+    print()
     print("  1️⃣  激活虚拟环境并运行配置向导：")
-    if platform.system() == "Windows":
-        print(f'     {install_dir}\\.venv\\Scripts\\Activate.ps1')
-        print(f'     tronmcp onboard')
-    else:
-        print(f'     source {install_dir}/.venv/bin/activate')
-        print(f'     tronmcp onboard')
+    print(f"     {platform_info['activate_cmd']}")
+    print(f"     tronmcp onboard")
     print()
-    print("  2️⃣  或者直接运行（已自动配置）：")
-    if platform.system() == "Windows":
-        print(f'     {install_dir}\\.venv\\Scripts\\tronmcp.exe onboard')
-    else:
-        print(f'     {install_dir}/.venv/bin/tronmcp onboard')
+    print("  2️⃣  或者直接运行（无需激活）：")
+    print(f"     {platform_info['tronmcp_path']} onboard")
     print()
+    
+    # 询问是否立即运行 onboard
     print("="*60)
+    print()
+    try:
+        # 使用 questionary 如果可用，否则用 input
+        try:
+            import questionary
+            run_now = questionary.select(
+                "是否现在运行配置向导？",
+                choices=[
+                    "✅ 是的，立即配置",
+                    "⏭️  跳过，稍后手动配置"
+                ],
+                default="✅ 是的，立即配置"
+            ).ask()
+        except ImportError:
+            response = input("是否现在运行配置向导？(y/n): ").strip().lower()
+            run_now = "yes" if response in ['y', 'yes', '是'] else "no"
+        
+        if run_now and ("是的" in run_now or run_now == "yes"):
+            print("\n" + "="*60)
+            print("  🚀 启动配置向导...")
+            print("="*60 + "\n")
+            
+            # 直接运行 onboard 模块
+            onboard_cmd = f'"{python_cmd}" -m tron_mcp_server.onboard'
+            if subprocess.run(onboard_cmd, shell=True).returncode != 0:
+                print("  ⚠️  配置向导运行失败，请稍后手动运行：")
+                print(f"     {platform_info['tronmcp_path']} onboard")
+        else:
+            print("\n  💡 稍后可以运行以下命令启动配置向导：")
+            print(f"     {platform_info['tronmcp_path']} onboard")
+            print()
+    except KeyboardInterrupt:
+        print("\n\n  👋 跳过配置向导")
+    except Exception as e:
+        print(f"\n  ⚠️  自动启动失败: {e}")
+        print(f"     请手动运行: {platform_info['tronmcp_path']} onboard")
+    
+    print("\n" + "="*60)
     print()
 
 
