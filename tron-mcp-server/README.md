@@ -267,27 +267,60 @@ Skill 文件包含：
 
 ```
 tron-mcp-server/
-├── tron_mcp_server/
-│   ├── __init__.py           # 包入口
-│   ├── server.py             # MCP Server（暴露 tron_* 工具）
-│   ├── cli.py                # CLI 命令入口（tronmcp 命令）
-│   ├── onboard.py            # 交互式配置向导（6 步引导）
-│   ├── call_router.py        # 调用路由器
-│   ├── skills.py             # 技能清单定义
-│   ├── tron_client.py        # TRONSCAN REST 客户端（查询）
-│   ├── trongrid_client.py    # TronGrid API 客户端（交易构建/广播）
-│   ├── tx_builder.py         # 交易构建器（含安全检查）
-│   ├── key_manager.py        # 本地私钥管理（签名/地址派生）
-│   ├── validators.py         # 参数校验
-│   ├── formatters.py         # 输出格式化
-│   └── config.py             # 配置管理（含 TronZap API 配置）
-├── Changelog.md              # 版本更新日志
-├── test_known_issues.py      # 已知问题测试
-├── test_transfer_flow.py     # 转账流程测试
-├── test_tx_builder_new.py    # 交易构建测试
-├── pyproject.toml            # 项目配置（依赖、脚本入口）
-├── requirements.txt          # 依赖（备用）
-└── .env.example              # 环境变量示例
+├── tron_mcp_server/             # Python 包
+│   ├── __init__.py              # 包入口
+│   ├── server.py                # MCP Server（暴露 tron_* 工具）
+│   ├── cli.py                   # CLI 命令入口（tronmcp 命令）
+│   ├── onboard.py               # 交互式配置向导（6 步引导）
+│   ├── call_router.py           # 调用路由器
+│   ├── skills.py                # 技能清单定义
+│   ├── tron_client.py           # TRONSCAN REST 客户端（查询）
+│   ├── trongrid_client.py       # TronGrid API 客户端（交易构建/广播）
+│   ├── tx_builder.py            # 交易构建器（含安全检查）
+│   ├── key_manager.py           # 本地私钥管理（签名/地址派生）
+│   ├── validators.py            # 参数校验
+│   ├── formatters.py            # 输出格式化
+│   └── config.py                # 配置管理（含 TronZap API 配置）
+├── Changelog.md                 # 版本更新日志
+├── run_tests.py                 # 🧪 测试运行脚本（pytest 驱动）
+├── pyproject.toml               # 项目配置（依赖、脚本入口 + pytest 配置）
+├── requirements.txt             # 依赖（备用）
+├── .env.example                 # 环境变量示例
+├── Dockerfile                   # Docker 容器化配置
+├── .dockerignore                # Docker 构建排除规则
+└── tests/                       # 标准化测试目录
+    ├── conftest.py              # 共享 fixtures 和自动标记
+    ├── fixtures/
+    │   └── sample_responses.json
+    ├── unit/                    # 单元测试 (78 tests)
+    │   ├── test_validators.py
+    │   ├── test_formatters.py
+    │   └── test_key_manager.py
+    ├── integration/             # 集成测试 (285 tests)
+    │   ├── test_trongrid_client.py
+    │   ├── test_tron_client.py
+    │   ├── test_tx_builder_new.py
+    │   ├── test_tx_builder_integration.py
+    │   ├── test_transfer_flow.py
+    │   ├── test_call_router_actions.py
+    │   └── test_call_router_queries.py
+    ├── functional/              # 功能测试 (142 tests)
+    │   ├── test_account_tokens.py
+    │   ├── test_account_resources.py
+    │   ├── test_address_book.py
+    │   ├── test_config_and_skills.py
+    │   ├── test_internal_transactions.py
+    │   ├── test_memo_functionality.py
+    │   ├── test_qrcode.py
+    │   ├── test_server_tools.py
+    │   ├── test_sign_broadcast.py
+    │   ├── test_sign_tx.py
+    │   └── test_transaction_history.py
+    ├── regression/              # 回归测试 (49 tests)
+    │   ├── test_balance_bug_fix.py
+    │   └── test_known_issues.py
+    └── stress/                  # 压力测试
+        └── stress_test.py
 ```
 
 ## 🛠️ 开发与测试
@@ -295,12 +328,35 @@ tron-mcp-server/
 ### 运行测试
 
 ```bash
-# 使用测试脚本（推荐）
+# 使用测试脚本（推荐）- 运行所有测试
 python run_tests.py
 
-# 或直接使用 pytest
-python -m pytest test_known_issues.py test_transfer_flow.py test_tx_builder_new.py -v
+# 按类别运行测试
+python run_tests.py --category unit        # 单元测试 (78 tests)
+python run_tests.py --category integration  # 集成测试 (285 tests)
+python run_tests.py --category functional  # 功能测试 (142 tests)
+python run_tests.py --category regression  # 回归测试 (49 tests)
+python run_tests.py --category stress      # 压力测试
+
+# 生成覆盖率报告
+python run_tests.py --coverage
+
+# 生成 HTML 测试报告
+python run_tests.py --html
+
+# 或直接使用 pytest（自动发现 tests/ 目录）
+pytest tests/ -v
 ```
+
+### 测试结构
+
+- **unit/**: 单元测试（validator, formatter, key_manager）
+- **integration/**: 集成测试（API调用、交易流程）
+- **functional/**: 功能测试（各模块完整功能）
+- **regression/**: 回归测试（已知问题验证）
+- **stress/**: 压力测试（独立脚本）
+- **fixtures/**: 共享测试数据
+- **conftest.py**: 自动 mock 和 fixtures
 
 ### 测试覆盖
 

@@ -303,7 +303,6 @@ docker run --env-file .env -p 8765:8765 tron-mcp-server --sse
 ```
 .
 ├── install.py                       # 🚀 一键安装脚本（项目根目录）
-├── run_tests.py                     # 🧪 测试运行脚本（项目根目录）
 ├── Changelog.md                     # 📋 项目级更新日志
 ├── README.md                        # 📖 本文件（主文档）
 ├── tron-blockchain-skill/           # Agent Skill（知识层）
@@ -326,9 +325,43 @@ docker run --env-file .env -p 8765:8765 tron-mcp-server --sse
     ├── Changelog.md                 # MCP Server 层更新日志
     ├── Dockerfile                   # Docker 容器化配置
     ├── .dockerignore                # Docker 构建排除规则
-    ├── test_*.py                    # 测试文件（30+ 测试用例）
+    ├── run_tests.py                 # 🧪 测试运行脚本（pytest 驱动）
+    ├── pyproject.toml               # 项目配置（包含 pytest 配置）
     ├── requirements.txt             # 依赖
-    └── .env.example                 # 环境变量示例
+    ├── .env.example                 # 环境变量示例
+    └── tests/                       # 标准化测试目录
+        ├── conftest.py              # 共享 fixtures 和自动标记
+        ├── fixtures/                # 测试数据
+        │   └── sample_responses.json
+        ├── unit/                    # 单元测试 (78 tests)
+        │   ├── test_validators.py
+        │   ├── test_formatters.py
+        │   └── test_key_manager.py
+        ├── integration/             # 集成测试 (285 tests)
+        │   ├── test_trongrid_client.py
+        │   ├── test_tron_client.py
+        │   ├── test_tx_builder_new.py
+        │   ├── test_tx_builder_integration.py
+        │   ├── test_transfer_flow.py
+        │   ├── test_call_router_actions.py
+        │   └── test_call_router_queries.py
+        ├── functional/              # 功能测试 (142 tests)
+        │   ├── test_account_tokens.py
+        │   ├── test_account_resources.py
+        │   ├── test_address_book.py
+        │   ├── test_config_and_skills.py
+        │   ├── test_internal_transactions.py
+        │   ├── test_memo_functionality.py
+        │   ├── test_qrcode.py
+        │   ├── test_server_tools.py
+        │   ├── test_sign_broadcast.py
+        │   ├── test_sign_tx.py
+        │   └── test_transaction_history.py
+        ├── regression/              # 回归测试 (49 tests)
+        │   ├── test_balance_bug_fix.py
+        │   └── test_known_issues.py
+        └── stress/                  # 压力测试
+            └── stress_test.py
 ```
 
 ## 技术细节
