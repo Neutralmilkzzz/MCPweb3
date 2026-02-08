@@ -42,37 +42,119 @@
 
 ## 快速开始
 
-### 环境要求
+### 1️⃣ 克隆项目
+
+从 GitHub 克隆本项目到本地：
+
+```bash
+git clone https://github.com/Neutralmilkzzz/MCPweb3.git
+cd MCPweb3/tron-mcp-server
+```
+
+或直接下载 ZIP 压缩包并解压。
+
+### 2️⃣ 一键安装配置（强烈推荐）
+
+我们提供了全新的**全自动安装配置流程**，让您在 2 分钟内完成所有准备工作：
+
+#### 步骤 1: 运行安装脚本
+
+```powershell
+# 在项目根目录运行
+python install.py
+```
+
+或在 `tron-mcp-server` 子目录中运行：
+
+```powershell
+cd tron-mcp-server
+python install.py
+```
+
+`install.py` 会自动完成：
+- ✅ **Python 环境检查**（需 3.10+）
+- ✅ **创建虚拟环境** `.venv`
+- ✅ **安装所有依赖**（包括 `mcp`, `httpx`, `rich`, `questionary` 等）
+- ✅ **注册 `tronmcp` 命令**到虚拟环境
+- ✅ **显示操作指引**（下一步该做什么）
+
+#### 步骤 2: 运行配置向导
+
+安装完成后，运行交互式配置向导：
+
+```bash
+# Windows PowerShell
+tron-mcp-server\.venv\Scripts\Activate.ps1
+tronmcp onboard
+
+# 或直接运行（无需手动激活）
+tron-mcp-server\.venv\Scripts\tronmcp.exe onboard
+```
+
+`onboard` 向导提供 **6 步引导**，像支付宝一样简单：
+
+| 步骤 | 操作 | 说明 |
+|------|------|------|
+| 1️⃣ | 🌐 **选择网络** | 主网（真实交易）或 Nile 测试网（开发调试） |
+| 2️⃣ | 🔐 **输入私钥** | 密码隐密输入，即时派生地址并校验 |
+| 3️⃣ | 🔑 **配置 API Keys** | TronGrid + TronScan（可选，带连接性测试） |
+| 4️⃣ | 💾 **保存配置** | 自动写入 `.env` 文件并设置安全权限 |
+| 5️⃣ | ⚙️ **添加到 PATH** | 可选，让 `tronmcp` 命令全局可用 |
+| 6️⃣ | 🚀 **启动服务器** | 可选，立即启动 MCP Server（Stdio/SSE） |
+
+> 💡 **提示**：`onboard` 会帮你完成所有配置，**无需手动编辑 `.env`**！
+
+#### 步骤 3: 启动 MCP Server
+
+配置完成后，根据你的客户端选择启动方式：
+
+**方式一：Stdio 模式**（Claude Desktop、 Windsurf 等）
+
+```bash
+# 激活虚拟环境后
+tronmcp server
+# 或
+python -m tron_mcp_server.server
+```
+
+**方式二：SSE 模式**（Cursor、Trae 等）
+
+```bash
+tronmcp server --sse
+# 或
+python -m tron_mcp_server.server --sse
+```
+
+默认监听 `http://127.0.0.1:8765/sse`，可通过 `MCP_PORT` 环境变量修改端口。
+
+---
+
+### 📋 环境要求
 
 - **Python**: 3.10 或更高版本
 - **操作系统**: Windows / macOS / Linux
+- **网络**: 可访问 TRON 主网/测试网
 
-### 1. 安装依赖
+---
 
-**Windows:**
-```powershell
-cd tron-mcp-server
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-```
+### 🔧 手动配置（高级用户）
 
-**macOS / Linux:**
-```bash
-cd tron-mcp-server
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 2. 配置环境变量
+如果跳过 `onboard`，可手动创建 `.env` 文件：
 
 ```bash
+# 复制示例文件
 cp .env.example .env
-# 编辑 .env 文件，按需配置 TRONSCAN API
+
+# 编辑 .env，填写以下配置：
+TRON_NETWORK=mainnet          # 或 nile（测试网）
+TRON_PRIVATE_KEY=your_private_key_here  # 64位十六进制
+TRONGRID_API_KEY=your_key     # 可选
+TRONSCAN_API_KEY=your_key     # 可选
 ```
 
-### 3. 运行 MCP Server
+---
+
+### 🚀 运行 MCP Server
 
 **方式一：stdio 模式（默认，用于 Claude Desktop 等）**
 
@@ -175,6 +257,8 @@ tron-mcp-server/
 ├── tron_mcp_server/
 │   ├── __init__.py           # 包入口
 │   ├── server.py             # MCP Server（暴露 tron_* 工具）
+│   ├── cli.py                # CLI 命令入口（tronmcp 命令）
+│   ├── onboard.py            # 交互式配置向导（6 步引导）
 │   ├── call_router.py        # 调用路由器
 │   ├── skills.py             # 技能清单定义
 │   ├── tron_client.py        # TRONSCAN REST 客户端（查询）
@@ -184,20 +268,26 @@ tron-mcp-server/
 │   ├── validators.py         # 参数校验
 │   ├── formatters.py         # 输出格式化
 │   └── config.py             # 配置管理
+├── install.py                # 🚀 一键安装脚本（自动环境搭建）
+├── run_tests.py              # 🧪 测试运行脚本
+├── Changelog.md              # 版本更新日志
 ├── test_known_issues.py      # 已知问题测试
 ├── test_transfer_flow.py     # 转账流程测试
 ├── test_tx_builder_new.py    # 交易构建测试
-├── requirements.txt          # 依赖
+├── pyproject.toml            # 项目配置（依赖、脚本入口）
+├── requirements.txt          # 依赖（备用）
 └── .env.example              # 环境变量示例
 ```
 
-## 开发
-
-说明: 测试不再依赖 `tronpy`，本地签名与地址派生均由内置实现完成。
+## 🛠️ 开发与测试
 
 ### 运行测试
 
 ```bash
+# 使用测试脚本（推荐）
+python run_tests.py
+
+# 或直接使用 pytest
 python -m pytest test_known_issues.py test_transfer_flow.py test_tx_builder_new.py -v
 ```
 
@@ -213,6 +303,144 @@ python -m pytest test_known_issues.py test_transfer_flow.py test_tx_builder_new.
 - ✅ 转账流程（签名 / 广播 / 一键转账）
 - ✅ 私钥管理与地址派生
 - ✅ 安全审计与风控拦截
+
+---
+
+## 🎨 新功能亮点
+
+### 🚀 一键安装（install.py）
+
+告别繁琐的手动配置！`install.py` 提供全自动安装体验：
+
+```powershell
+python install.py
+```
+
+**自动完成**：
+- Python 环境检查
+- 虚拟环境创建
+- 依赖安装（包括 `mcp`, `httpx`, `rich`, `questionary`）
+- `tronmcp` 命令注册
+- 清晰的下一步指引
+
+### 🎯 交互式配置（onboard）
+
+`tronmcp onboard` 提供类似支付宝的交互体验：
+
+- 🔐 **私钥隐密输入**：密码框显示，保护隐私
+- 🧮 **即时地址校验**：输入私钥后立即派生地址，让用户确认
+- 🌐 **网络选择**：主网/测试网一目了然
+- 🔑 **API Keys 配置**：TronGrid + TronScan，带连接性测试
+- 💾 **自动持久化**：配置自动保存到 `.env`，无需手动编辑
+- 🎨 **品牌化 UI**：TRONMCP LOGO + 支付宝蓝主题色
+
+### 💻 CLI 命令系统
+
+安装后可使用 `tronmcp` 命令：
+
+```bash
+tronmcp onboard              # 运行配置向导
+tronmcp server               # 启动 MCP Server（stdio）
+tronmcp server --sse         # 启动 MCP Server（SSE）
+tronmcp --help               # 查看帮助
+```
+
+---
+
+## 🔧 技术细节
+
+- **USDT 合约**: `TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t` (TRC20, 6 位小数)
+- **查询 API**: TRONSCAN REST（余额、交易状态、Gas 参数、安全检查）
+- **交易 API**: TronGrid（构建真实交易、广播签名交易）
+- **签名算法**: ECDSA secp256k1 + RFC 6979 确定性签名
+- **地址派生**: 私钥 → secp256k1 公钥 → Keccak256 → Base58Check
+- **传输协议**: stdio（默认）/ SSE（`--sse` 启动）
+- **默认端口**: 8765（SSE 模式，可通过 `MCP_PORT` 环境变量修改）
+- **关键依赖**: `mcp`, `httpx`, `ecdsa`, `pycryptodome`, `base58`, `rich`, `questionary`
+
+---
+
+## 📦 依赖管理
+
+### 核心依赖（自动安装）
+
+`install.py` 会自动安装以下核心包：
+
+```txt
+mcp>=0.9.0
+httpx>=0.27.0
+ecdsa>=0.18.0
+pycryptodome>=3.20.0
+base58>=2.1.1
+rich>=13.7.0
+questionary>=2.0.1
+```
+
+### 可选依赖
+
+如需完整功能（包括 `tronpy` 支持），可安装 extras：
+
+```bash
+pip install "tron-mcp-server[full]"
+```
+
+---
+
+## ⚠️ 端口占用处理
+
+服务器启动时会自动检测端口占用，如果默认端口 `8765` 被占用：
+
+1. 设置环境变量 `MCP_PORT` 为其他可用端口：
+   ```bash
+   # Windows PowerShell
+   $env:MCP_PORT=8766
+   python -m tron_mcp_server.server --sse
+   ```
+
+2. 或修改 `.env` 文件：
+   ```bash
+   MCP_PORT=8766
+   ```
+
+---
+
+## 🤝 配套 Agent Skill
+
+AI 通过加载 `tron-blockchain-skill/SKILL.md` 来学习如何使用这些工具：
+
+```
+../tron-blockchain-skill/
+├── SKILL.md       # AI 读取的技能说明
+└── LICENSE.txt
+```
+
+Skill 文件包含：
+- 每个工具的详细参数说明
+- 返回值格式
+- 工作流程示例
+- 错误处理指导
+
+---
+
+## 📝 注意事项
+
+- 🔐 **私钥安全**：私钥仅存储在本地 `.env` 文件中，绝不会上传到任何服务器
+- 🌐 **网络选择**：主网用于真实交易，测试网用于开发调试，请根据需求选择
+- 🔑 **API Keys**：TronGrid 和 TronScan API Keys 为可选配置，不配置也能使用基本功能
+- 🛡️ **安全审计**：转账前会自动检查地址安全性（TRONSCAN 黑名单 + 多维风控）
+- ⛽ **Gas 卫士**：自动拦截余额不足的"必死交易"，避免资产损失
+
+---
+
+## ❓ 常见问题
+
+详见根目录 [README.md](../README.md#常见问题-faq) 中的完整 FAQ 部分。
+
+---
+
+## 📄 许可证
+
+MIT
 
 ## 技术细节
 

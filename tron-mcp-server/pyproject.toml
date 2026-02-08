@@ -15,7 +15,6 @@ dependencies = [
     "base58>=2.1.0",
     "ecdsa>=0.18.0",
     "pycryptodome>=3.19.0",
-    "tronpy>=0.4.0",
     "python-dotenv>=1.0.0",
     "uvicorn>=0.20.0",
     "starlette>=0.27.0",
@@ -23,9 +22,15 @@ dependencies = [
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
     "qrcode[pil]>=7.4.0",
+    "rich>=13.0.0",
+    "questionary>=2.0.0",
 ]
 
+# tronpy 在 Windows 上编译困难，作为可选依赖
 [project.optional-dependencies]
+full = [
+    "tronpy>=0.4.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
@@ -33,6 +38,7 @@ dev = [
 
 [project.scripts]
 tron-mcp-server = "tron_mcp_server.server:main"
+tronmcp = "tron_mcp_server.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["tron_mcp_server*"]

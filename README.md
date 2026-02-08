@@ -88,55 +88,126 @@
 - 🪙 **代币资产概览**：查询地址持有的所有代币列表（TRX + TRC20 + TRC10）
 - 🌐 **网络切换**：通过 `TRON_NETWORK` 环境变量一键切换主网/Nile 测试网，API 地址和合约地址自动适配
 
-## 快速开始
+## 🚀 快速开始
+
+### 1️⃣ 克隆项目
+
+首先，从 GitHub 克隆本项目到本地：
+
+```bash
+git clone https://github.com/Neutralmilkzzz/MCPweb3.git
+cd MCPweb3
+```
+
+### 2️⃣ 一键安装配置（强烈推荐）
+
+我们提供了全新的**全自动安装配置流程**，让您在 2 分钟内完成所有准备工作：
+
+#### 步骤 1: 运行安装脚本
+
+```bash
+# 在项目根目录运行（根据系统选择命令）
+python install.py        # Windows / Linux（如果 python 指向 Python 3）
+# 或
+python3 install.py       # Linux / macOS（如果 python 指向 Python 2）
+```
+
+或在 `tron-mcp-server` 子目录中运行：
+
+```bash
+cd tron-mcp-server
+python install.py        # 或 python3
+```
+
+`install.py` 会自动完成：
+- ✅ **Python 环境检查**（需 3.10+）
+- ✅ **创建虚拟环境** `.venv`
+- ✅ **安装所有依赖**（包括 `mcp`, `httpx`, `rich`, `questionary` 等）
+- ✅ **注册 `tronmcp` 命令**到虚拟环境
+- ✅ **显示操作指引**（下一步该做什么）
+
+#### 步骤 2: 运行配置向导
+
+安装完成后，运行交互式配置向导：
+
+```bash
+# Windows PowerShell
+tron-mcp-server\.venv\Scripts\Activate.ps1
+tronmcp onboard
+
+# 或直接运行（无需手动激活）
+tron-mcp-server\.venv\Scripts\tronmcp.exe onboard
+```
+
+`onboard` 向导提供 **6 步引导**，像支付宝一样简单：
+
+| 步骤 | 操作 | 说明 |
+|------|------|------|
+| 1️⃣ | 🌐 **选择网络** | 主网（真实交易）或 Nile 测试网（开发调试） |
+| 2️⃣ | 🔐 **输入私钥** | 密码隐密输入，即时派生地址并校验 |
+| 3️⃣ | 🔑 **配置 API Keys** | TronGrid + TronScan（可选，带连接性测试） |
+| 4️⃣ | 💾 **保存配置** | 自动写入 `.env` 文件并设置安全权限 |
+| 5️⃣ | ⚙️ **添加到 PATH** | 可选，让 `tronmcp` 命令全局可用 |
+| 6️⃣ | 🚀 **启动服务器** | 可选，立即启动 MCP Server（Stdio/SSE） |
+
+> 💡 **提示**：`onboard` 会帮你完成所有配置，**无需手动编辑 `.env`**！
+
+#### 步骤 3: 启动 MCP Server
+
+配置完成后，根据你的客户端选择启动方式：
+
+**方式一：Stdio 模式**（Claude Desktop、Windsurf 等）
+
+```bash
+# 激活虚拟环境后
+tronmcp server
+# 或
+python -m tron_mcp_server.server        # 或 python3
+```
+
+**方式二：SSE 模式**（Cursor、Trae 等）
+
+```bash
+tronmcp server --sse
+# 或
+python -m tron_mcp_server.server --sse  # 或 python3
+```
+
+默认监听 `http://127.0.0.1:8765/sse`，可通过 `MCP_PORT` 环境变量修改端口。
+
+---
+
+### ⚙️ 手动配置（可选）
+
+如果跳过 `onboard`，可手动创建 `.env` 文件：
+
+```bash
+# Windows
+copy .env.example .env
+
+# macOS/Linux
+cp .env.example .env
+```
+
+编辑 `.env`，填写以下配置：
+```bash
+TRON_NETWORK=mainnet          # 或 nile（测试网）
+TRON_PRIVATE_KEY=your_private_key_here  # 64位十六进制
+TRONGRID_API_KEY=your_key     # 可选
+TRONSCAN_API_KEY=your_key     # 可选
+```
+
+---
 
 ### 环境要求
 
 - **Python**: 3.10 或更高版本
 - **操作系统**: Windows / macOS / Linux
+- **网络**: 可访问 TRON 主网/测试网
 
-### 1. 安装依赖
+---
 
-**Windows:**
-```powershell
-cd tron-mcp-server
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-**macOS / Linux:**
-```bash
-cd tron-mcp-server
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 2. 配置环境变量
-
-**Windows:**
-```bash
-copy .env.example .env
-# 编辑 .env 文件，按需配置：
-# - TRON_NETWORK: 选择网络（mainnet 或 nile），默认 mainnet
-# - TRONGRID_API_KEY: TronGrid API 密钥（推荐配置）
-# - TRONSCAN_API_KEY: 提高 API 限额（推荐）
-# - TRON_PRIVATE_KEY: 签名/广播交易时必需
-```
-
-**macOS / Linux:**
-```bash
-cp .env.example .env
-# 编辑 .env 文件，按需配置：
-# - TRON_NETWORK: 选择网络（mainnet 或 nile），默认 mainnet
-# - TRONGRID_API_KEY: TronGrid API 密钥（推荐配置）
-# - TRONSCAN_API_KEY: 提高 API 限额（推荐）
-# - TRON_PRIVATE_KEY: 签名/广播交易时必需
-```
-
-
-### 3. 运行 MCP Server
+### 运行 MCP Server
 
 **方式一：stdio 模式（默认，用于 Claude Desktop 等）**
 
@@ -247,38 +318,33 @@ docker run --env-file .env -p 8765:8765 tron-mcp-server --sse
 
 ```
 .
+├── install.py                       # 🚀 一键安装脚本（项目根目录）
+├── run_tests.py                     # 🧪 测试运行脚本（项目根目录）
+├── Changelog.md                     # 📋 项目级更新日志
+├── README.md                        # 📖 本文件（主文档）
 ├── tron-blockchain-skill/           # Agent Skill（知识层）
 │   ├── SKILL.md                     # AI 读取的技能说明
 │   └── LICENSE.txt
-├── tron-mcp-server/                 # MCP Server（执行层）
-│   ├── tron_mcp_server/             # Python 包
-│   │   ├── __init__.py              # 包入口
-│   │   ├── server.py                # MCP Server 入口（暴露 tron_* 工具）
-│   │   ├── call_router.py           # 调用路由器
-│   │   ├── skills.py                # 技能清单定义
-│   │   ├── tron_client.py           # TRONSCAN REST 客户端（查询）
-│   │   ├── trongrid_client.py       # TronGrid API 客户端（交易构建/广播）
-│   │   ├── tx_builder.py            # 交易构建器（含安全检查）
-│   │   ├── key_manager.py           # 本地私钥管理（签名/地址派生）
-│   │   ├── address_book.py          # 地址簿管理（别名↔地址映射）
-│   │   ├── validators.py            # 参数校验
-│   │   ├── formatters.py            # 输出格式化
-│   │   └── config.py                # 配置管理（网络切换/API 预设）
-│   ├── Dockerfile                   # Docker 容器化配置
-│   ├── .dockerignore                # Docker 构建排除规则
-│   ├── test_known_issues.py         # 已知问题测试
-│   ├── test_transfer_flow.py        # 转账流程测试
-│   ├── test_tx_builder_new.py       # 交易构建测试
-│   ├── test_transaction_history.py  # 交易历史查询测试
-│   ├── test_address_book.py         # 地址簿模块测试
-│   ├── test_tron_client.py          # TRON 客户端集成测试
-│   ├── test_trongrid_client.py      # TronGrid 客户端集成测试
-│   ├── test_call_router_*.py        # 路由器集成测试
-│   ├── test_config_and_skills.py    # 配置与技能模块测试
-│   ├── requirements.txt             # 依赖
-│   └── .env.example                 # 环境变量示例
-├── Changelog.md                     # 更新日志
-└── README.md                        # 本文件
+└── tron-mcp-server/                 # MCP Server（执行层）
+    ├── tron_mcp_server/             # Python 包
+    │   ├── __init__.py              # 包入口
+    │   ├── server.py                # MCP Server 入口（暴露 tron_* 工具）
+    │   ├── call_router.py           # 调用路由器
+    │   ├── skills.py                # 技能清单定义
+    │   ├── tron_client.py           # TRONSCAN REST 客户端（查询）
+    │   ├── trongrid_client.py       # TronGrid API 客户端（交易构建/广播）
+    │   ├── tx_builder.py            # 交易构建器（含安全检查）
+    │   ├── key_manager.py           # 本地私钥管理（签名/地址派生）
+    │   ├── address_book.py          # 地址簿管理（别名↔地址映射）
+    │   ├── validators.py            # 参数校验
+    │   ├── formatters.py            # 输出格式化
+    │   └── config.py                # 配置管理（网络切换/API 预设）
+    ├── Changelog.md                 # MCP Server 层更新日志
+    ├── Dockerfile                   # Docker 容器化配置
+    ├── .dockerignore                # Docker 构建排除规则
+    ├── test_*.py                    # 测试文件（30+ 测试用例）
+    ├── requirements.txt             # 依赖
+    └── .env.example                 # 环境变量示例
 ```
 
 ## 技术细节
