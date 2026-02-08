@@ -442,6 +442,37 @@ def tron_addressbook_list() -> dict:
     return call_router.call("addressbook_list", {})
 
 
+# ============ QR Code 工具 ============
+
+@mcp.tool()
+def tron_generate_qrcode(
+    address: str,
+    output_dir: str = None,
+    filename: str = None,
+) -> dict:
+    """
+    将 TRON 钱包地址生成 QR Code 二维码图片，保存到本地。
+
+    使用场景：
+    - "帮我把我的钱包地址生成一个二维码"
+    - "生成 TKyPzHiXW4Zms4txUxfWjXBidGzZpiCchn 的收款二维码"
+    - "我想把地址做成二维码方便别人扫码转账"
+
+    Args:
+        address: TRON 钱包地址（Base58 格式以 T 开头）
+        output_dir: 输出目录路径（可选，默认保存到当前目录的 qrcodes 文件夹）
+        filename: 自定义文件名（可选，不含扩展名，默认用地址生成）
+
+    Returns:
+        包含 file_path, address, file_size, summary 的结果
+    """
+    return call_router.call("generate_qrcode", {
+        "address": address,
+        "output_dir": output_dir,
+        "filename": filename,
+    })
+
+
 def main():
     """启动 MCP Server（支持 stdio 和 SSE 模式）"""
     import sys

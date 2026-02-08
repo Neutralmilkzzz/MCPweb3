@@ -104,6 +104,13 @@ SKILLS = [
         "params": {},
     },
     {
+        "action": "generate_qrcode",
+        "desc": "将钱包地址生成 QR Code 二维码图片保存到本地",
+        "params": {
+            "address": "TRON 钱包地址",
+            "output_dir": "输出目录（可选）",
+            "filename": "自定义文件名（可选）",
+        },
         "action": "get_account_energy",
         "desc": "查询账户能量(Energy)资源情况（总额度、已使用、剩余）",
         "params": {"address": "TRON 地址"},

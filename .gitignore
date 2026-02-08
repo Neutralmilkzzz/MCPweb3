@@ -38,3 +38,6 @@ EVALUATION_REPORT.md
 *.egg-info/
 build/
 dist/
+
+# QR Code output directory
+qrcodes/

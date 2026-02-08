@@ -11,6 +11,7 @@ from . import key_manager
 from . import validators
 from . import formatters
 from . import address_book
+from . import qrcode_generator
 from .key_manager import KeyManager
 
 logger = logging.getLogger(__name__)
@@ -755,6 +756,26 @@ def _handle_addressbook_list(params: dict) -> dict:
         return _error_response("addressbook_error", f"获取地址簿失败: {e}")
 
 
+def _handle_generate_qrcode(params: dict) -> dict:
+    """处理 generate_qrcode 动作 — 生成钱包地址二维码"""
+    address = params.get("address")
+    if not address:
+        return _error_response("missing_param", "缺少必填参数: address（TRON 地址）")
+    if not validators.is_valid_address(address):
+        return _error_response("invalid_address", f"无效的地址格式: {address}")
+
+    output_dir = params.get("output_dir")
+    filename = params.get("filename")
+
+    try:
+        result = qrcode_generator.generate_address_qrcode(
+            address=address,
+            output_dir=output_dir,
+            filename=filename,
+        )
+        return formatters.format_qrcode_result(result)
+    except Exception as e:
+        return _error_response("qrcode_error", f"生成二维码失败: {e}")
 def _handle_get_account_energy(params: dict) -> dict:
     """处理 get_account_energy 动作 — 查询账户能量"""
     address = params.get("address")
@@ -807,6 +828,7 @@ _ACTION_HANDLERS = {
     "addressbook_remove": _handle_addressbook_remove,
     "addressbook_lookup": _handle_addressbook_lookup,
     "addressbook_list": _handle_addressbook_list,
+    "generate_qrcode": _handle_generate_qrcode,
     "get_account_energy": _handle_get_account_energy,
     "get_account_bandwidth": _handle_get_account_bandwidth,
 }
