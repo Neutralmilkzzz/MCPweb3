@@ -21,7 +21,7 @@ import json
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "."))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
