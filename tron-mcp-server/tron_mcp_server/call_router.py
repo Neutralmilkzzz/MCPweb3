@@ -257,10 +257,12 @@ def _handle_build_tx(params: dict) -> dict:
         return _error_response("invalid_amount", f"金额必须为正数: {amount}")
 
     try:
-        # 构建预览交易（不包含 memo，因为是预览）
+        # 构建预览交易（用于安全检查，不包含 memo）
+        # 预览交易只用于验证安全性和余额，不会被实际发送
         preview_result = _build_unsigned_tx(from_addr, to_addr, amount, token, force_execution)
         
-        # 如果有 memo，需要通过 TronGrid 构建真实交易
+        # 如果有 memo，需要通过 TronGrid 构建包含 memo 的真实交易
+        # 因为预览交易不是真实的 protobuf 格式，无法包含 memo
         if memo:
             # 将 memo 转换为 hex
             memo_hex = memo.encode("utf-8").hex()
@@ -381,18 +383,18 @@ def _handle_transfer(params: dict) -> dict:
 
     # 3. 通过 TronGrid 构建真实交易
     try:
-        # 将 memo 转换为 hex
-        memo_hex = memo.encode("utf-8").hex() if memo else ""
+        # 将 memo 转换为 hex（仅当 memo 不为空时）
+        memo_hex = memo.encode("utf-8").hex() if memo else None
         
         if token_upper == "USDT":
             unsigned_tx = trongrid_client.build_trc20_transfer(
                 from_addr, to_addr, amount_float,
-                extra_data=memo_hex if memo_hex else None,
+                extra_data=memo_hex,
             )
         else:
             unsigned_tx = trongrid_client.build_trx_transfer(
                 from_addr, to_addr, amount_float,
-                extra_data=memo_hex if memo_hex else None,
+                extra_data=memo_hex,
             )
     except Exception as e:
         return _error_response("build_error", f"TronGrid 构建交易失败: {e}")

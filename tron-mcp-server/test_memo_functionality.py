@@ -37,7 +37,7 @@ class TestMemoEncoding(unittest.TestCase):
         # 英文
         memo = "Invoice #1234"
         memo_hex = memo.encode("utf-8").hex()
-        self.assertEqual(memo_hex, "496e766f69636520233132333" + "4")
+        self.assertEqual(memo_hex, "496e766f696365202331323334")
         
         # 中文
         memo = "还你的饭钱"
