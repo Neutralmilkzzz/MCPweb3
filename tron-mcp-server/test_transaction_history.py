@@ -268,6 +268,23 @@ class TestFormatTransactionHistory:
         assert result["address"] == base58_address
         assert result["transfers"][0]["direction"] == "SELF"
 
+    def test_direction_detection_with_hex_transfer_addresses(self):
+        """测试 hex 转账地址的方向检测"""
+        base58_address = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"
+        hex_address = "0x4174472e7d35395a6b5add427eecb7f4b62ad2b071"
+        transfers_self = [{
+            "transactionHash": "tx_hex_transfer",
+            "transferFromAddress": hex_address,
+            "transferToAddress": hex_address,
+            "amount": 1000000,
+            "tokenName": "_",
+            "timestamp": 1640000000000
+        }]
+        result = formatters.format_transaction_history(base58_address, transfers_self, 1)
+        assert result["transfers"][0]["from"] == base58_address
+        assert result["transfers"][0]["to"] == base58_address
+        assert result["transfers"][0]["direction"] == "SELF"
+
     def test_trc20_token_info_parsing(self):
         """测试 TRC20 代币信息解析"""
         address = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"

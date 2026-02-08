@@ -10,6 +10,15 @@ TRX_TRANSFER_BANDWIDTH_COST = 270  # 每笔 TRX 转账约消耗的带宽（字�
 USDT_TRANSFER_BANDWIDTH_COST = 350  # 每笔 USDT 转账约消耗的带宽（字节）
 
 
+def _safe_normalize_address(address: str) -> str:
+    if not address:
+        return ""
+    try:
+        return _normalize_address(address)
+    except (ValueError, TypeError):
+        return address
+
+
 def format_usdt_balance(address: str, balance_raw: int) -> dict:
     """
     格式化 USDT 余额
@@ -355,7 +364,7 @@ def format_transaction_history(
         格式化的交易历史结果
     """
     formatted_transfers = []
-    normalized_address = _normalize_address(address) if address else ""
+    normalized_address = _safe_normalize_address(address)
     
     for tx in transfers:
         # 提取交易哈希
@@ -364,8 +373,8 @@ def format_transaction_history(
         # 提取发送方和接收方地址
         from_addr = tx.get("transferFromAddress") or tx.get("from_address") or tx.get("from") or ""
         to_addr = tx.get("transferToAddress") or tx.get("to_address") or tx.get("to") or ""
-        from_addr = _normalize_address(from_addr) if from_addr else ""
-        to_addr = _normalize_address(to_addr) if to_addr else ""
+        from_addr = _safe_normalize_address(from_addr)
+        to_addr = _safe_normalize_address(to_addr)
         
         # 提取金额（使用显式 None 检查避免零值被跳过）
         amount_raw = tx.get("quant")
