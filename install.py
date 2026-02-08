@@ -218,8 +218,13 @@ def main():
             print("  🚀 启动配置向导...")
             print("="*60 + "\n")
             
-            # 直接运行 onboard 模块
-            onboard_cmd = f'"{python_cmd}" -m tron_mcp_server.onboard'
+            # 使用虚拟环境的 Python 运行 onboard 模块
+            if system == "Windows":
+                venv_python = venv_dir / "Scripts" / "python.exe"
+            else:
+                venv_python = venv_dir / "bin" / "python"
+            
+            onboard_cmd = f'"{venv_python}" -m tron_mcp_server.onboard'
             if subprocess.run(onboard_cmd, shell=True).returncode != 0:
                 print("  ⚠️  配置向导运行失败，请稍后手动运行：")
                 print(f"     {platform_info['tronmcp_path']} onboard")
