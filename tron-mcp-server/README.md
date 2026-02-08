@@ -230,6 +230,9 @@ python -m tron_mcp_server.server --sse
 | `tron_get_wallet_info` | 查看本地钱包地址和余额（不暴露私钥） | 无 |
 | `tron_get_account_energy` | 查询账户能量(Energy)资源情况 | `address` |
 | `tron_get_account_bandwidth` | 查询账户带宽(Bandwidth)资源情况 | `address` |
+| `tron_get_transaction_history` | 查询地址的交易历史记录（支持按代币类型筛选） | `address`, `limit`, `start`, `token` |
+| `tron_get_internal_transactions` | 查询地址的内部交易（合约内部调用产生的转账） | `address`, `limit`, `start` |
+| `tron_get_account_tokens` | 查询地址持有的所有代币列表（TRX + TRC20 + TRC10） | `address` |
 
 ### 资源租赁工具
 
@@ -246,6 +249,12 @@ python -m tron_mcp_server.server --sse
 | `tron_sign_tx` | 构建并签名交易，不广播（需 `TRON_PRIVATE_KEY`） | `from_address`, `to_address`, `amount`, `token` |
 | `tron_broadcast_tx` | 广播已签名交易到 TRON 网络 | `signed_tx_json` |
 | `tron_transfer` | 🚀 一键转账闭环：安全检查 → 构建 → 签名 → 广播 | `to_address`, `amount`, `token`, `force_execution`, `memo` |
+
+### 其他工具
+
+| 工具名 | 描述 | 参数 |
+|--------|------|------|
+| `tron_generate_qrcode` | 将钱包地址生成 QR Code 二维码图片 | `address`, `output_dir` (可选), `filename` (可选) |
 
 ## 配套 Agent Skill
 

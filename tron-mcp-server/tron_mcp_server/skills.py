@@ -111,6 +111,8 @@ SKILLS = [
             "output_dir": "输出目录（可选）",
             "filename": "自定义文件名（可选）",
         },
+    },
+    {
         "action": "get_account_energy",
         "desc": "查询账户能量(Energy)资源情况（总额度、已使用、剩余）",
         "params": {"address": "TRON 地址"},
@@ -119,6 +121,24 @@ SKILLS = [
         "action": "get_account_bandwidth",
         "desc": "查询账户带宽(Bandwidth)资源情况（免费带宽、质押带宽、总可用）",
         "params": {"address": "TRON 地址"},
+    },
+    {
+        "action": "lease_energy",
+        "desc": "租赁 TRON 能量 (Energy)，降低 USDT 转账 Gas 费用",
+        "params": {
+            "to_address": "接收方地址",
+            "amount": "租赁能量数值（整数）",
+            "duration": "租赁时长：1（1小时）或 24（24小时，默认）",
+            "activate_account": "是否激活接收方账户（布尔值，默认 false）",
+        },
+    },
+    {
+        "action": "lease_bandwidth",
+        "desc": "租赁 TRON 带宽 (Bandwidth)，降低转账数据存储费用",
+        "params": {
+            "to_address": "接收方地址",
+            "amount": "租赁带宽数值（整数）",
+        },
     },
 ]
 

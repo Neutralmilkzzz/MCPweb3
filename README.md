@@ -280,6 +280,13 @@ docker run --env-file .env -p 8765:8765 tron-mcp-server --sse
 | `tron_get_account_energy` | 查询账户能量(Energy)资源情况 | `address` |
 | `tron_get_account_bandwidth` | 查询账户带宽(Bandwidth)资源情况 | `address` |
 
+### 资源租赁工具
+
+| 工具名 | 描述 | 参数 |
+|--------|------|------|
+| `tron_lease_energy` | 租赁 TRON 能量 (Energy)，降低 USDT 转账 Gas 费用 | `to_address`, `amount`, `duration` (1/24h), `activate_account` |
+| `tron_lease_bandwidth` | 租赁 TRON 带宽 (Bandwidth)，降低转账数据存储费用 | `to_address`, `amount` |
+
 ### 转账工具
 
 | 工具名 | 描述 | 参数 |
@@ -297,6 +304,12 @@ docker run --env-file .env -p 8765:8765 tron-mcp-server --sse
 | `tron_addressbook_remove` | 删除联系人 | `alias` |
 | `tron_addressbook_lookup` | 通过别名查找地址（支持模糊搜索） | `alias` |
 | `tron_addressbook_list` | 列出所有联系人 | 无 |
+
+### 其他工具
+
+| 工具名 | 描述 | 参数 |
+|--------|------|------|
+| `tron_generate_qrcode` | 将钱包地址生成 QR Code 二维码图片 | `address`, `output_dir` (可选), `filename` (可选) |
 
 ## 项目结构
 
