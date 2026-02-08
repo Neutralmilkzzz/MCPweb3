@@ -42,7 +42,18 @@
 
 ## 快速开始
 
-### 🎯 一键安装配置（强烈推荐）
+### 1️⃣ 克隆项目
+
+从 GitHub 克隆本项目到本地：
+
+```bash
+git clone https://github.com/Neutralmilkzzz/MCPweb3.git
+cd MCPweb3/tron-mcp-server
+```
+
+或直接下载 ZIP 压缩包并解压。
+
+### 2️⃣ 一键安装配置（强烈推荐）
 
 我们提供了全新的**全自动安装配置流程**，让您在 2 分钟内完成所有准备工作：
 
