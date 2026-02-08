@@ -733,3 +733,134 @@ def get_account_tokens(address: str) -> dict:
         "token_count": len(tokens),
         "tokens": tokens,
     }
+
+
+def get_account_energy(address: str) -> dict:
+    """
+    查询账户能量(Energy)资源情况
+    
+    调用 TRONSCAN /api/accountv2 接口获取资源信息。
+    
+    Args:
+        address: TRON 地址
+    
+    Returns:
+        包含 energy_limit, energy_used, energy_remaining 等字段的字典
+    """
+    normalized = _normalize_address(address)
+    data = _get("accountv2", {"address": normalized})
+    
+    # 从响应中提取 Energy 相关字段
+    energy_limit = _to_int(_first_not_none(
+        data.get("energyLimit"),
+        data.get("energy_limit"),
+        0,
+    ))
+    energy_used = _to_int(_first_not_none(
+        data.get("energyUsed"),
+        data.get("energy_used"),
+        0,
+    ))
+    energy_remaining = _to_int(_first_not_none(
+        data.get("remainingEnergy"),
+        data.get("remaining_energy"),
+        max(0, energy_limit - energy_used),
+    ))
+    frozen_for_energy = _to_int(_first_not_none(
+        data.get("frozenForEnergy"),
+        data.get("frozen_for_energy"),
+        0,
+    ))
+    delegated_for_energy = _to_int(_first_not_none(
+        data.get("delegateFrozenForEnergy"),
+        data.get("delegate_frozen_for_energy"),
+        0,
+    ))
+    
+    return {
+        "address": normalized,
+        "energy_limit": energy_limit,
+        "energy_used": energy_used,
+        "energy_remaining": energy_remaining,
+        "frozen_for_energy_sun": frozen_for_energy,
+        "frozen_for_energy_trx": frozen_for_energy / 1_000_000,
+        "delegated_for_energy_sun": delegated_for_energy,
+        "delegated_for_energy_trx": delegated_for_energy / 1_000_000,
+    }
+
+
+def get_account_bandwidth(address: str) -> dict:
+    """
+    查询账户带宽(Bandwidth)资源情况
+    
+    调用 TRONSCAN /api/accountv2 接口获取资源信息。
+    
+    Args:
+        address: TRON 地址
+    
+    Returns:
+        包含 free_net_limit, free_net_used, net_limit, net_used 等字段的字典
+    """
+    normalized = _normalize_address(address)
+    data = _get("accountv2", {"address": normalized})
+    
+    # 免费带宽（每天约 600 点）
+    free_net_limit = _to_int(_first_not_none(
+        data.get("freeNetLimit"),
+        data.get("free_net_limit"),
+        600,  # TRON 默认每账户每天 600 免费带宽
+    ))
+    free_net_used = _to_int(_first_not_none(
+        data.get("freeNetUsed"),
+        data.get("free_net_used"),
+        0,
+    ))
+    free_net_remaining = max(0, free_net_limit - free_net_used)
+    
+    # 质押获得的带宽
+    net_limit = _to_int(_first_not_none(
+        data.get("netLimit"),
+        data.get("net_limit"),
+        0,
+    ))
+    net_used = _to_int(_first_not_none(
+        data.get("netUsed"),
+        data.get("net_used"),
+        0,
+    ))
+    net_remaining = max(0, net_limit - net_used)
+    
+    # 质押的 TRX 数量
+    frozen_for_bandwidth = _to_int(_first_not_none(
+        data.get("freezeAmountForBandwidth"),
+        data.get("freeze_amount_for_bandwidth"),
+        data.get("frozenForBandwidth"),
+        0,
+    ))
+    delegated_for_bandwidth = _to_int(_first_not_none(
+        data.get("acquiredDelegateFrozenForBandWidth"),
+        data.get("acquired_delegate_frozen_for_bandwidth"),
+        0,
+    ))
+    
+    # 汇总
+    total_limit = free_net_limit + net_limit
+    total_used = free_net_used + net_used
+    total_remaining = free_net_remaining + net_remaining
+    
+    return {
+        "address": normalized,
+        "free_net_limit": free_net_limit,
+        "free_net_used": free_net_used,
+        "free_net_remaining": free_net_remaining,
+        "net_limit": net_limit,
+        "net_used": net_used,
+        "net_remaining": net_remaining,
+        "total_bandwidth": total_limit,
+        "total_used": total_used,
+        "total_remaining": total_remaining,
+        "frozen_for_bandwidth_sun": frozen_for_bandwidth,
+        "frozen_for_bandwidth_trx": frozen_for_bandwidth / 1_000_000,
+        "delegated_for_bandwidth_sun": delegated_for_bandwidth,
+        "delegated_for_bandwidth_trx": delegated_for_bandwidth / 1_000_000,
+    }

@@ -717,6 +717,36 @@ def _handle_addressbook_list(params: dict) -> dict:
         return _error_response("addressbook_error", f"获取地址簿失败: {e}")
 
 
+def _handle_get_account_energy(params: dict) -> dict:
+    """处理 get_account_energy 动作 — 查询账户能量"""
+    address = params.get("address")
+    if not address:
+        return _error_response("missing_param", "缺少必填参数: address")
+    if not validators.is_valid_address(address):
+        return _error_response("invalid_address", f"无效的地址格式: {address}")
+    
+    try:
+        result = tron_client.get_account_energy(address)
+        return formatters.format_account_energy(result)
+    except Exception as e:
+        return _error_response("rpc_error", str(e))
+
+
+def _handle_get_account_bandwidth(params: dict) -> dict:
+    """处理 get_account_bandwidth 动作 — 查询账户带宽"""
+    address = params.get("address")
+    if not address:
+        return _error_response("missing_param", "缺少必填参数: address")
+    if not validators.is_valid_address(address):
+        return _error_response("invalid_address", f"无效的地址格式: {address}")
+    
+    try:
+        result = tron_client.get_account_bandwidth(address)
+        return formatters.format_account_bandwidth(result)
+    except Exception as e:
+        return _error_response("rpc_error", str(e))
+
+
 # 动作路由表 — 字典映射提升可维护性
 _ACTION_HANDLERS = {
     "skills": _handle_skills,
@@ -739,6 +769,8 @@ _ACTION_HANDLERS = {
     "addressbook_remove": _handle_addressbook_remove,
     "addressbook_lookup": _handle_addressbook_lookup,
     "addressbook_list": _handle_addressbook_list,
+    "get_account_energy": _handle_get_account_energy,
+    "get_account_bandwidth": _handle_get_account_bandwidth,
 }
 
 

@@ -103,6 +103,16 @@ SKILLS = [
         "desc": "列出地址簿中所有联系人",
         "params": {},
     },
+    {
+        "action": "get_account_energy",
+        "desc": "查询账户能量(Energy)资源情况（总额度、已使用、剩余）",
+        "params": {"address": "TRON 地址"},
+    },
+    {
+        "action": "get_account_bandwidth",
+        "desc": "查询账户带宽(Bandwidth)资源情况（免费带宽、质押带宽、总可用）",
+        "params": {"address": "TRON 地址"},
+    },
 ]
 
 
