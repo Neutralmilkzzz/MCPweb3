@@ -11,6 +11,7 @@ USDT_TRANSFER_BANDWIDTH_COST = 350  # 每笔 USDT 转账约消耗的带宽（字
 
 
 def _safe_normalize_address(address: str) -> str:
+    """安全归一化 TRON 地址，转换失败时返回原值。"""
     if not address:
         return ""
     try:

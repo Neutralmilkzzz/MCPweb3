@@ -256,6 +256,7 @@ class TestFormatTransactionHistory:
         """测试 hex 地址的方向检测"""
         base58_address = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"
         hex_address = "0x4174472e7d35395a6b5add427eecb7f4b62ad2b071"
+        assert tron_client._normalize_address(hex_address) == base58_address
         transfers_self = [{
             "transactionHash": "tx_hex",
             "transferFromAddress": base58_address,
