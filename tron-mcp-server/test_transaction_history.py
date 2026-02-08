@@ -1,8 +1,12 @@
 """测试交易历史查询功能"""
 
+import base58
 import pytest
 from unittest.mock import patch, MagicMock
 from tron_mcp_server import call_router, tron_client, formatters
+
+BASE58_ADDRESS = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"
+HEX_ADDRESS = f"0x{base58.b58decode_check(BASE58_ADDRESS).hex()}"
 
 
 class TestGetTransactionHistory:
@@ -214,7 +218,7 @@ class TestFormatTransactionHistory:
 
     def test_direction_detection(self):
         """测试方向检测逻辑"""
-        address = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"
+        address = BASE58_ADDRESS
         
         # 测试 OUT 方向
         transfers_out = [{
@@ -254,8 +258,8 @@ class TestFormatTransactionHistory:
 
     def test_direction_detection_with_hex_address(self):
         """测试 hex 地址的方向检测"""
-        base58_address = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"
-        hex_address = "0x4174472e7d35395a6b5add427eecb7f4b62ad2b071"
+        base58_address = BASE58_ADDRESS
+        hex_address = HEX_ADDRESS
         assert tron_client._normalize_address(hex_address) == base58_address
         transfers_self = [{
             "transactionHash": "tx_hex",
@@ -271,8 +275,8 @@ class TestFormatTransactionHistory:
 
     def test_direction_detection_with_hex_transfer_addresses(self):
         """测试 hex 转账地址的方向检测"""
-        base58_address = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"
-        hex_address = "0x4174472e7d35395a6b5add427eecb7f4b62ad2b071"
+        base58_address = BASE58_ADDRESS
+        hex_address = HEX_ADDRESS
         transfers_self = [{
             "transactionHash": "tx_hex_transfer",
             "transferFromAddress": hex_address,
