@@ -76,6 +76,9 @@
 - 📡 **交易广播**：将已签名交易广播到 TRON 网络
 - 🚀 **一键转账闭环**：`tron_transfer` 自动完成 安全检查 → 构建 → 签名 → 广播 全流程
 - 👛 **钱包管理**：查看本地钱包地址及余额，不暴露私钥
+- ⚡ **能量/带宽查询**：查询账户剩余 Energy 与 Bandwidth 资源
+- 📝 **转账备注 (Memo)**：支持在 `tron_build_tx` / `tron_transfer` 中写入备注
+- 📒 **本地地址簿**：别名 ↔ 地址映射，便于转账与查询
 - 🛡️ **Gas 卫士 (Anti-Revert)**：在构建交易前强制检查发送方余额，预估 Gas 费用，拦截"必死交易"
 - 👤 **接收方状态检测**：自动识别接收方地址是否为未激活状态，提示额外能量消耗
 - ⏰ **交易有效期延长**：交易过期时间延长至 10 分钟，为人工签名提供充足时间窗口
@@ -226,10 +229,10 @@ docker run --env-file .env -p 8765:8765 tron-mcp-server --sse
 
 | 工具名 | 描述 | 参数 |
 |--------|------|------|
-| `tron_build_tx` | 构建未签名交易（含安全审计 + Gas 拦截） | `from_address`, `to_address`, `amount`, `token`, `force_execution` |
+| `tron_build_tx` | 构建未签名交易（含安全审计 + Gas 拦截） | `from_address`, `to_address`, `amount`, `token`, `force_execution`, `memo` |
 | `tron_sign_tx` | 对未签名交易进行签名，不广播（需 `TRON_PRIVATE_KEY`） | `unsigned_tx_json` |
 | `tron_broadcast_tx` | 广播已签名交易到 TRON 网络 | `signed_tx_json` |
-| `tron_transfer` | 🚀 一键转账闭环：安全检查 → 构建 → 签名 → 广播 | `to_address`, `amount`, `token`, `force_execution` |
+| `tron_transfer` | 🚀 一键转账闭环：安全检查 → 构建 → 签名 → 广播 | `to_address`, `amount`, `token`, `force_execution`, `memo` |
 
 ### 地址簿工具
 
@@ -523,6 +526,9 @@ This project uses an **Agent Skill + MCP Server separation architecture**:
 - 📡 **Transaction Broadcasting**: Broadcast signed transactions to TRON network
 - 🚀 **One-Click Transfer**: `tron_transfer` auto-completes full flow: safety check → build → sign → broadcast
 - 👛 **Wallet Management**: View local wallet address and balances without exposing private key
+- ⚡ **Energy/Bandwidth Resources**: Query remaining account energy and bandwidth resources
+- 📝 **Transfer Memo**: Add memo data in `tron_build_tx` / `tron_transfer`
+- 📒 **Local Address Book**: Manage alias ↔ address mappings for quick transfers
 - 🛡️ **Gas Guard (Anti-Revert)**: Pre-validates sender balance and estimated gas before building transactions to prevent doomed transactions
 - 👤 **Recipient Status Check**: Automatically detects if recipient address is unactivated, warns about extra energy costs
 - ⏰ **Extended Expiration**: Transaction expiration extended to 10 minutes, providing sufficient time for manual signing
@@ -665,10 +671,10 @@ docker run --env-file .env -p 8765:8765 tron-mcp-server --sse
 
 | Tool Name | Description | Parameters |
 |-----------|-------------|------------|
-| `tron_build_tx` | Build unsigned transaction (with security audit + gas guard) | `from_address`, `to_address`, `amount`, `token`, `force_execution` |
+| `tron_build_tx` | Build unsigned transaction (with security audit + gas guard) | `from_address`, `to_address`, `amount`, `token`, `force_execution`, `memo` |
 | `tron_sign_tx` | Sign an unsigned transaction without broadcasting (requires `TRON_PRIVATE_KEY`) | `unsigned_tx_json` |
 | `tron_broadcast_tx` | Broadcast signed transaction to TRON network | `signed_tx_json` |
-| `tron_transfer` | 🚀 One-click transfer: safety check → build → sign → broadcast | `to_address`, `amount`, `token`, `force_execution` |
+| `tron_transfer` | 🚀 One-click transfer: safety check → build → sign → broadcast | `to_address`, `amount`, `token`, `force_execution`, `memo` |
 
 ### Address Book Tools
 

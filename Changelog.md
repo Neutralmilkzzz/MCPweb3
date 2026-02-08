@@ -4,6 +4,44 @@
 
 ---
 
+## 2026-02-08 (v1.0.5) — 地址簿 + 资源查询 + Memo 备注
+
+### ✅ 新增：本地地址簿 (PR #52)
+
+- 新增地址簿模块与 4 个 MCP 工具：`tron_addressbook_add/remove/lookup/list`
+- 支持别名 ↔ 地址映射、模糊查询与本地持久化
+
+### ✅ 新增：账户能量/带宽查询 (PR #54)
+
+- 新增 `tron_get_account_energy` 与 `tron_get_account_bandwidth` 查询工具
+- 返回账户剩余 Energy 与 Bandwidth 资源信息
+
+### 🔧 修复：资源查询改用 TronGrid API (PR #55)
+
+- Energy/Bandwidth 查询改为 `wallet/getaccountresource`，字段更完整稳定
+
+### ✅ 新增：转账 Memo 备注 (PR #56)
+
+- `tron_build_tx` / `tron_transfer` 支持 memo 参数，写入链上备注
+
+### 📚 文档同步 (PR #50, #51)
+
+- README/Changelog 统一最新工具与网络配置说明
+- Docker 部署文档与容器化支持补充
+
+### 近期合并的 PR 汇总
+
+| PR | 标题 | 合并日期 |
+|:---:|:---|:---|
+| #56 | Add memo function for transfer transactions | 2026-02-08 |
+| #55 | Fix energy and bandwidth query to use TronGrid API | 2026-02-08 |
+| #54 | Add MCP tools to query TRON account energy and bandwidth | 2026-02-08 |
+| #52 | Add local address book feature for TRON wallet aliases | 2026-02-07 |
+| #51 | Add Dockerfile and update changelog/README with Docker deployment docs | 2026-02-07 |
+| #50 | Update README and CHANGELOG for PRs #43–#49 | 2026-02-07 |
+
+---
+
 ## 2026-02-07 (v1.0.4) — Docker 容器化支持
 
 ### ✅ 新增：Dockerfile 与 .dockerignore
