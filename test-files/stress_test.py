@@ -1,7 +1,10 @@
 import asyncio
+import os
 import time
 import httpx
 from tron_mcp_server import formatters
+
+os.chdir("../tron-mcp-server")
 
 # 模拟配置
 CONCURRENT_USERS = 50  # 模拟 50 个并发请求

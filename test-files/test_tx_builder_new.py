@@ -3,6 +3,8 @@ from unittest.mock import patch, MagicMock
 import sys
 import os
 
+os.chdir("../tron-mcp-server")
+
 # 强制 UTF-8 编码
 sys.stdout.reconfigure(encoding='utf-8')
 

@@ -20,6 +20,8 @@ import tempfile
 import json
 from pathlib import Path
 
+os.chdir("../tron-mcp-server")
+
 # 强制 UTF-8 编码
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')

@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from tron_mcp_server import call_router, tron_client, formatters
 
+os.chdir("../tron-mcp-server")
 
 class TestGetTransactionHistory:
     """测试 get_transaction_history 功能"""

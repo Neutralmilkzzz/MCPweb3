@@ -5,6 +5,8 @@ import sys
 import os
 import unittest
 
+os.chdir("../tron-mcp-server")
+
 # 确保项目目录在 path 中
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
