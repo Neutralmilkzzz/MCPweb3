@@ -90,6 +90,7 @@ def build_trx_transfer(
     owner_address: str,
     to_address: str,
     amount_trx: float,
+    extra_data: Optional[str] = None,
 ) -> dict:
     """
     通过 TronGrid API 构建 TRX 原生转账交易
@@ -98,6 +99,9 @@ def build_trx_transfer(
         owner_address: 发送方地址 (Base58 或 Hex)
         to_address: 接收方地址 (Base58 或 Hex)
         amount_trx: 转账金额 (TRX)
+        extra_data: 交易备注的十六进制编码（可选）。
+                    对应 Transaction.raw.data 字段 (Proto field 10)。
+                    例如 "hello".encode("utf-8").hex() → "68656c6c6f"
 
     Returns:
         TronGrid 返回的完整未签名交易:
@@ -118,6 +122,10 @@ def build_trx_transfer(
         "amount": amount_sun,
         "visible": False,
     }
+    
+    # 添加 memo（备注）
+    if extra_data:
+        data["extra_data"] = extra_data
 
     result = _post("wallet/createtransaction", data)
 
@@ -137,6 +145,7 @@ def build_trc20_transfer(
     contract_address: Optional[str] = None,
     decimals: int = 6,
     fee_limit: Optional[int] = None,
+    extra_data: Optional[str] = None,
 ) -> dict:
     """
     通过 TronGrid API 构建 TRC20 代币转账交易
@@ -148,6 +157,8 @@ def build_trc20_transfer(
         contract_address: TRC20 合约地址, 默认 USDT
         decimals: 代币小数位, 默认 6 (USDT)
         fee_limit: 费用上限 (SUN), 默认 100 TRX
+        extra_data: 交易备注的十六进制编码（可选）。
+                    对应 Transaction.raw.data 字段 (Proto field 10)。
 
     Returns:
         TronGrid 返回的完整未签名交易
@@ -181,6 +192,10 @@ def build_trc20_transfer(
         "call_value": 0,
         "visible": False,
     }
+
+    # 添加 memo（备注）
+    if extra_data:
+        data["extra_data"] = extra_data
 
     result = _post("wallet/triggersmartcontract", data)
 

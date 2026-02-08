@@ -147,10 +147,10 @@ python -m tron_mcp_server.server --sse
 
 | 工具名 | 描述 | 参数 |
 |--------|------|------|
-| `tron_build_tx` | 构建未签名交易（含安全审计 + Gas 拦截） | `from_address`, `to_address`, `amount`, `token`, `force_execution` |
+| `tron_build_tx` | 构建未签名交易（含安全审计 + Gas 拦截） | `from_address`, `to_address`, `amount`, `token`, `force_execution`, `memo` |
 | `tron_sign_tx` | 构建并签名交易，不广播（需 `TRON_PRIVATE_KEY`） | `from_address`, `to_address`, `amount`, `token` |
 | `tron_broadcast_tx` | 广播已签名交易到 TRON 网络 | `signed_tx_json` |
-| `tron_transfer` | 🚀 一键转账闭环：安全检查 → 构建 → 签名 → 广播 | `to_address`, `amount`, `token`, `force_execution` |
+| `tron_transfer` | 🚀 一键转账闭环：安全检查 → 构建 → 签名 → 广播 | `to_address`, `amount`, `token`, `force_execution`, `memo` |
 
 ## 配套 Agent Skill
 

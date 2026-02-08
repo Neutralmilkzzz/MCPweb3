@@ -239,6 +239,7 @@ def _handle_build_tx(params: dict) -> dict:
     amount = params.get("amount")
     token = params.get("token", "USDT")
     force_execution = params.get("force_execution", False)
+    memo = params.get("memo", "")
 
     # 参数校验
     if not from_addr:
@@ -256,7 +257,38 @@ def _handle_build_tx(params: dict) -> dict:
         return _error_response("invalid_amount", f"金额必须为正数: {amount}")
 
     try:
-        return _build_unsigned_tx(from_addr, to_addr, amount, token, force_execution)
+        # 构建预览交易（不包含 memo，因为是预览）
+        preview_result = _build_unsigned_tx(from_addr, to_addr, amount, token, force_execution)
+        
+        # 如果有 memo，需要通过 TronGrid 构建真实交易
+        if memo:
+            # 将 memo 转换为 hex
+            memo_hex = memo.encode("utf-8").hex()
+            
+            token_upper = token.upper()
+            amount_float = float(amount)
+            
+            # 通过 TronGrid 构建包含 memo 的真实交易
+            if token_upper == "USDT":
+                unsigned_tx = trongrid_client.build_trc20_transfer(
+                    from_addr, to_addr, amount_float,
+                    extra_data=memo_hex,
+                )
+            else:
+                unsigned_tx = trongrid_client.build_trx_transfer(
+                    from_addr, to_addr, amount_float,
+                    extra_data=memo_hex,
+                )
+            
+            # 替换预览结果中的 unsigned_tx
+            preview_result["unsigned_tx"] = unsigned_tx
+            
+            # 更新 summary 添加 memo 信息
+            if "summary" in preview_result:
+                preview_result["summary"] = preview_result["summary"] + f" 备注: {memo}"
+        
+        return preview_result
+        
     except tx_builder.InsufficientBalanceError as e:
         # 策略二：余额不足时返回详细的错误信息，拒绝构建交易以节省 Gas
         return {
@@ -303,6 +335,7 @@ def _handle_transfer(params: dict) -> dict:
     amount = params.get("amount")
     token = params.get("token", "USDT")
     force_execution = params.get("force_execution", False)
+    memo = params.get("memo", "")
 
     if not to_addr:
         return _error_response("missing_param", "缺少必填参数: to")
@@ -348,13 +381,18 @@ def _handle_transfer(params: dict) -> dict:
 
     # 3. 通过 TronGrid 构建真实交易
     try:
+        # 将 memo 转换为 hex
+        memo_hex = memo.encode("utf-8").hex() if memo else ""
+        
         if token_upper == "USDT":
             unsigned_tx = trongrid_client.build_trc20_transfer(
-                from_addr, to_addr, amount_float
+                from_addr, to_addr, amount_float,
+                extra_data=memo_hex if memo_hex else None,
             )
         else:
             unsigned_tx = trongrid_client.build_trx_transfer(
-                from_addr, to_addr, amount_float
+                from_addr, to_addr, amount_float,
+                extra_data=memo_hex if memo_hex else None,
             )
     except Exception as e:
         return _error_response("build_error", f"TronGrid 构建交易失败: {e}")
