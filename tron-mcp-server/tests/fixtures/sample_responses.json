@@ -1,0 +1,36 @@
+{
+  "tron_scan_account": {
+    "success": true,
+    "data": {
+      "address": "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7",
+      "balance": 1234567890,
+      "account_name": "Test Account",
+      "create_time": 1640995200000,
+      "latest_opration_time": 1704067200000
+    }
+  },
+  "usdt_balance": {
+    "success": true,
+    "data": {
+      "trc20": [
+        {
+          "contract_address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+          "token_name": "Tether USD",
+          "token_symbol": "USDT",
+          "token_decimal": 6,
+          "balance": "500000000"
+        }
+      ]
+    }
+  },
+  "transaction_status": {
+    "success": true,
+    "data": {
+      "txid": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+      "block_number": 12345678,
+      "block_time_stamp": 1704067200000,
+      "contract_ret": "SUCCESS",
+      "fee": 1000000
+    }
+  }
+}
