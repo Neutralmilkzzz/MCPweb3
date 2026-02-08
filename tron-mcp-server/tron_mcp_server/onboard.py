@@ -435,13 +435,13 @@ def show_summary(network: str, private_key: str, trongrid_key: str, tronscan_key
 
 def step_setup_path() -> bool:
     """
-    询问用户是否将虚拟环境 Scripts 目录添加到 PATH，
+    询问用户是否将虚拟环境 bin/Scripts 目录添加到 PATH，
     以便在任何位置使用 tronmcp 命令。
     """
     console.print(
         Panel(
             "[bold white]⚙️  环境变量配置[/]\n"
-            "[dim]是否将虚拟环境的 Scripts 目录添加到系统 PATH？\n"
+            "[dim]是否将虚拟环境的可执行文件目录添加到系统 PATH？\n"
             "添加后，您可以在任意目录直接使用 'tronmcp' 命令。[/]",
             border_style=BRAND_BLUE,
             box=box.ROUNDED,
@@ -461,15 +461,21 @@ def step_setup_path() -> bool:
         console.print(f"  [dim]⏭️  已跳过 PATH 配置[/]")
         return True
 
-    # 获取虚拟环境的 Scripts 路径
-    venv_path = Path(__file__).parent.parent.parent / ".venv" / "Scripts"
+    # 根据操作系统确定虚拟环境的可执行文件目录
+    system = platform.system()
+    if system == "Windows":
+        venv_subdir = "Scripts"
+    else:
+        venv_subdir = "bin"
+
+    venv_path = Path(__file__).parent.parent.parent / ".venv" / venv_subdir
     if not venv_path.exists():
         console.print(f"  [bold {BRAND_GOLD}]⚠️  未找到虚拟环境目录: {venv_path}[/]")
-        console.print(f"  [dim]请手动将虚拟环境的 Scripts 目录添加到 PATH。[/]")
+        console.print(f"  [dim]请手动将虚拟环境的 {venv_subdir} 目录添加到 PATH。[/]")
         return True
 
     # Windows: 使用 setx 添加到用户 PATH
-    if platform.system() == "Windows":
+    if system == "Windows":
         try:
             import subprocess
             # 获取当前用户 PATH
@@ -493,7 +499,7 @@ def step_setup_path() -> bool:
             console.print(f"  [dim]请手动将以下目录添加到 PATH:[/]")
             console.print(f"  [bold]{venv_path}[/]")
     else:
-        # Unix/macOS: 建议手动添加
+        # Unix/macOS/Linux: 建议手动添加
         console.print(f"  [bold {BRAND_GOLD}]ℹ️  请手动将以下目录添加到 PATH:[/]")
         console.print(f"  [bold]{venv_path}[/]")
         console.print(f"  [dim]例如，在 ~/.bashrc 或 ~/.zshrc 中添加:[/]")
@@ -513,34 +519,82 @@ def _find_server_process(port: int = 8765) -> list[dict]:
     """
     try:
         import subprocess
-        # 查找监听端口的进程
-        result = subprocess.run(
-            ["netstat", "-ano", "|", "findstr", f":{port}"],
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        lines = result.stdout.strip().split("\n") if result.stdout else []
+        system = platform.system()
         pids = set()
-        for line in lines:
-            parts = line.split()
-            if len(parts) >= 5 and parts[3].startswith("LISTENING"):
-                pids.add(parts[4])
+
+        if system == "Windows":
+            # Windows: 使用 netstat 和 findstr
+            result = subprocess.run(
+                ["netstat", "-ano", "|", "findstr", f":{port}"],
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            lines = result.stdout.strip().split("\n") if result.stdout else []
+            for line in lines:
+                parts = line.split()
+                if len(parts) >= 5 and parts[3].startswith("LISTENING"):
+                    pids.add(parts[4])
+        else:
+            # Unix/Linux/macOS: 使用 lsof 或 ss
+            try:
+                # 优先使用 lsof
+                result = subprocess.run(
+                    ["lsof", "-i", f":{port}", "-t"],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                if result.returncode == 0:
+                    pids.update(result.stdout.strip().split("\n"))
+                else:
+                    # 尝试使用 ss
+                    result = subprocess.run(
+                        ["ss", "-ltnp", "|", "grep", f":{port}"],
+                        shell=True,
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                    )
+                    lines = result.stdout.strip().split("\n") if result.stdout else []
+                    for line in lines:
+                        if "tron" in line.lower():
+                            parts = line.split()
+                            for part in parts:
+                                if part.isdigit():
+                                    pids.add(part)
+                                    break
+            except Exception:
+                pass
 
         processes = []
         for pid in pids:
+            pid = pid.strip()
+            if not pid:
+                continue
             try:
-                # 获取进程名称
-                ps = subprocess.run(
-                    ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV"],
-                    shell=True,
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
-                )
-                if ps.returncode == 0 and "tron" in ps.stdout.lower():
-                    processes.append({"pid": pid, "name": "tron-mcp-server", "port": port})
+                if system == "Windows":
+                    # Windows: 使用 tasklist
+                    ps = subprocess.run(
+                        ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV"],
+                        shell=True,
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                    )
+                    if ps.returncode == 0 and "tron" in ps.stdout.lower():
+                        processes.append({"pid": pid, "name": "tron-mcp-server", "port": port})
+                else:
+                    # Unix/Linux/macOS: 使用 ps
+                    ps = subprocess.run(
+                        ["ps", "-p", pid, "-o", "comm="],
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                    )
+                    if ps.returncode == 0 and "tron" in ps.stdout.lower():
+                        processes.append({"pid": pid, "name": "tron-mcp-server", "port": port})
             except Exception:
                 continue
         return processes
@@ -553,13 +607,25 @@ def _kill_process(pid: str) -> bool:
     """强制终止指定 PID 的进程"""
     try:
         import subprocess
-        result = subprocess.run(
-            ["taskkill", "/F", "/PID", pid],
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
+        system = platform.system()
+
+        if system == "Windows":
+            result = subprocess.run(
+                ["taskkill", "/F", "/PID", pid],
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+        else:
+            # Unix/Linux/macOS: 使用 kill -9
+            result = subprocess.run(
+                ["kill", "-9", pid],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
         return result.returncode == 0
     except Exception as e:
         console.print(f"  [bold {BRAND_RED}]❌ 终止进程失败: {e}[/]")
@@ -648,13 +714,23 @@ def step_start_server() -> bool:
 
     try:
         import subprocess
-        venv_python = Path(__file__).parent.parent.parent / ".venv" / "Scripts" / "python.exe"
+        # 根据操作系统确定虚拟环境的 Python 路径
+        system = platform.system()
+        if system == "Windows":
+            venv_python = Path(__file__).parent.parent.parent / ".venv" / "Scripts" / "python.exe"
+        else:
+            venv_python = Path(__file__).parent.parent.parent / ".venv" / "bin" / "python"
+
         if not venv_python.exists():
-            venv_python = Path(sys.executable)
+            console.print(f"  [bold {BRAND_GOLD}]⚠️  未找到虚拟环境 Python: {venv_python}[/]")
+            console.print(f"  [dim]请先运行 install.py 安装依赖。[/]")
+            return True
 
         cmd = [str(venv_python), "-m", "tron_mcp_server.server"]
         if choice == "sse":
             cmd.append("--sse")
+
+        console.print(f"  [dim]命令: {' '.join(cmd)}[/]\n")
 
         # 使用 subprocess 运行服务器
         subprocess.run(cmd)
@@ -662,7 +738,7 @@ def step_start_server() -> bool:
         console.print(f"\n  [bold {BRAND_GOLD}]👋 服务器已停止。[/]\n")
     except Exception as e:
         console.print(f"\n  [bold {BRAND_RED}]❌ 启动失败：{e}[/]")
-        console.print(f"  [dim]请尝试手动运行: tron-mcp-server[/]\n")
+        console.print(f"  [dim]请尝试手动运行: {venv_python} -m tron_mcp_server.server[/]\n")
 
     return True
 
