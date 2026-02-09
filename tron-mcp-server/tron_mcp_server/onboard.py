@@ -254,7 +254,7 @@ def step_api_keys(network: str) -> tuple[str, str, str, str] | None:
             "[bold white]🔑 Step 3/6 · API Keys 配置[/]\n"
             "[dim]TronGrid API Key 用于链上数据查询，TronScan API Key 用于浏览器数据。\n"
             "TronZap API 用于能量/带宽租赁服务。\n"
-            "免费申请: https://www.trongrid.io/  |  https://tronscan.org/  |  https://tronzap.io/[/]",
+            "免费申请: https://www.trongrid.io/  |  https://tronscan.org/  |  https://tronzap.com/[/]",
             border_style=BRAND_BLUE,
             box=box.ROUNDED,
         )
@@ -340,7 +340,7 @@ def step_api_keys(network: str) -> tuple[str, str, str, str] | None:
         tronzap_token = questionary.text(
             "请输入 TronZap API Token：",
             style=ALIPAY_STYLE,
-            instruction="(从 tronzap.io 获取)",
+            instruction="(从 tronzap.com 获取)",
         ).ask()
 
         if tronzap_token is None:
@@ -355,7 +355,7 @@ def step_api_keys(network: str) -> tuple[str, str, str, str] | None:
             tronzap_secret = questionary.text(
                 "请输入 TronZap API Secret：",
                 style=ALIPAY_STYLE,
-                instruction="(从 tronzap.io 获取)",
+                instruction="(从 tronzap.com 获取)",
             ).ask()
 
             if tronzap_secret is None:

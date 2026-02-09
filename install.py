@@ -158,17 +158,20 @@ def main():
 
     # Step 3: 安装依赖
     print("🔧 Step 3/4: 安装依赖包")
+    
+    # Windows 使用 python -m pip 避免文件锁定问题，Linux/macOS 可以直接使用 pip
     if platform.system() == "Windows":
-        pip_cmd = f'"{venv_dir}/Scripts/pip.exe"'
+        venv_python = f'"{venv_dir}/Scripts/python.exe"'
+        pip_base_cmd = f'{venv_python} -m pip'
     else:
-        pip_cmd = f'"{venv_dir}/bin/pip"'
+        pip_base_cmd = f'"{venv_dir}/bin/pip"'
 
     # 升级 pip
-    if not run_command(f'{pip_cmd} install --upgrade pip', "升级 pip", capture_output=True):
+    if not run_command(f'{pip_base_cmd} install --upgrade pip', "升级 pip", capture_output=True):
         print("  ⚠️  pip 升级失败，继续安装...")
 
     # 安装项目（包含所有依赖）
-    if not run_command(f'{pip_cmd} install -e "{install_dir}"', "安装 tron-mcp-server", capture_output=True):
+    if not run_command(f'{pip_base_cmd} install -e "{install_dir}"', "安装 tron-mcp-server", capture_output=True):
         print("  ⚠️  安装失败，请检查错误信息")
         sys.exit(1)
     print()
