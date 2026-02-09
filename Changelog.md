@@ -4,6 +4,32 @@
 
 ---
 
+## 2026-02-09 (v1.0.7) — Windows 安装修复与域名更新
+
+### 🔧 修复：Windows pip 升级问题 (PR #XX)
+
+- **install.py**：Windows 平台改用 `python -m pip` 调用 pip，避免 pip.exe 文件锁定导致升级失败
+- **影响范围**：仅 Windows 用户，Linux/macOS 保持不变
+- **技术细节**：使用虚拟环境的 `python.exe -m pip` 替代直接调用 `pip.exe`
+
+### 📝 更新：TronZap 域名变更 (PR #XX)
+
+- **onboard.py**：将所有 `tronzap.io` 引用更新为 `tronzap.com`
+- **影响位置**：
+  - API 申请链接提示
+  - TronZap API Token 输入提示
+  - TronZap API Secret 输入提示
+
+### 📖 改进：README 虚拟环境使用指引 (PR #XX)
+
+- **问题**：用户在不配置环境变量的情况下无法使用 `tronmcp` 命令
+- **解决方案**：明确说明两种使用方式
+  - 方式一（推荐）：直接进入虚拟环境的 Scripts 目录运行 `.	ronmcp.exe onboard`
+  - 方式二：先激活虚拟环境，再运行 `tronmcp onboard`
+- **影响文件**：`tron-mcp-server/README.md`
+
+---
+
 ## 2026-02-09 (v1.0.6) — TronZap 能量/带宽租赁集成
 
 ### ✅ 新增：TronZap 资源租赁服务 (PR #XX)

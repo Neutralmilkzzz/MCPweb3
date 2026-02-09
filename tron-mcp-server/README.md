@@ -87,12 +87,13 @@ python install.py
 安装完成后，运行交互式配置向导：
 
 ```bash
-# Windows PowerShell
+# Windows PowerShell（推荐方式）
+cd tron-mcp-server\.venv\Scripts
+.\tronmcp.exe onboard
+
+# 或先激活虚拟环境再运行
 tron-mcp-server\.venv\Scripts\Activate.ps1
 tronmcp onboard
-
-# 或直接运行（无需手动激活）
-tron-mcp-server\.venv\Scripts\tronmcp.exe onboard
 ```
 
 `onboard` 向导提供 **6 步引导**，像支付宝一样简单：
